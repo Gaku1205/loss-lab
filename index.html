@@ -3,14 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Game</title>
-    <style>
-      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
-      canvas { display: block; width: 100vw; height: 100dvh; touch-action: none; user-select: none; -webkit-user-select: none; }
-    </style>
+    <meta name="theme-color" content="#090E18" />
+    <meta name="description" content="勾配降下・過学習・モデル設計・報酬設計を、4つの実験で遊びながら学ぶ無料のブラウザゲーム集。" />
+    <title>Loss Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500&display=swap"
+    />
   </head>
   <body>
-    <canvas id="game"></canvas>
+    <div id="app"></div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
