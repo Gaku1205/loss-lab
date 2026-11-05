@@ -1,0 +1,786 @@
+/* 色・文字・形は docs/design.md のとおり */
+:root {
+  --floor: #090e18;
+  --board: #111a2a;
+  --rule: #24314a;
+  --text: #dce3f0;
+  --cyan: #4fd6e8;
+  --vermilion: #ff5a1f;
+  --amber: #ffb23f;
+  --leaf: #a7e36b;
+  --f-head: "Chakra Petch", system-ui, sans-serif;
+  --f-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--floor);
+  color: var(--text);
+  font-family: var(--f-body);
+  font-size: 14px;
+  line-height: 1.6;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* ---- 共通の部品 ---- */
+.num {
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.label,
+.term-en {
+  font-family: var(--f-head);
+  font-weight: 600;
+}
+
+.label {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.term {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.term-ja {
+  font-family: var(--f-body);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.7;
+}
+
+.key {
+  display: inline-block;
+  font-family: var(--f-num);
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 6px;
+  border: 1px solid var(--rule);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 16px;
+  background: var(--board);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.btn .term-en {
+  letter-spacing: 0.12em;
+  font-size: 13px;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.btn-primary {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: var(--cyan);
+  background: var(--floor);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- メニュー ---- */
+.menu {
+  min-height: 100dvh;
+  padding: 32px 24px;
+}
+
+.menu-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.site-title {
+  font-family: var(--f-head);
+  font-weight: 600;
+  font-size: 48px;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+}
+
+.menu-lead {
+  margin-top: 8px;
+}
+
+.xp-table {
+  border-top: 1px solid var(--rule);
+}
+
+.xp-row {
+  --accent: var(--rule);
+  display: grid;
+  grid-template-columns: 64px minmax(0, 2.2fr) minmax(0, 1.4fr) 120px 260px;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 0 16px;
+  background: var(--board);
+  border-bottom: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+}
+
+.xp-headrow {
+  min-height: 40px;
+  background: var(--floor);
+  border-left-color: transparent;
+}
+
+.xp-row.is-ready {
+  cursor: pointer;
+}
+
+.xp-row.is-ready:hover {
+  background: var(--floor);
+}
+
+.xp-row.is-soon {
+  opacity: 0.45;
+}
+
+.xp-no {
+  font-size: 14px;
+}
+
+.xp-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.xp-en {
+  font-family: var(--f-head);
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.xp-ja {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.start-here {
+  align-self: center;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 6px;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+}
+
+.xp-best {
+  font-size: 16px;
+}
+
+.xp-state {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.soon {
+  font-size: 13px;
+}
+
+.section-title {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  margin-bottom: 16px;
+}
+
+.rank-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.rank-box {
+  --accent: var(--rule);
+  background: var(--board);
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--accent);
+  padding: 16px;
+}
+
+.rank-game {
+  font-family: var(--f-head);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.rank-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.rank-line {
+  display: flex;
+  gap: 16px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rank-no {
+  width: 16px;
+  opacity: 0.7;
+}
+
+.rank-empty {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.menu-foot {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ---- 勾配ゴルフ ---- */
+.golf {
+  height: 100dvh;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.golf-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.golf-title {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.game-title .term-en {
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+
+.readouts {
+  display: flex;
+  gap: 32px;
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 72px;
+}
+
+.readout-val {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.big {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 500;
+}
+
+.readout-sub .term-en {
+  font-size: 13px;
+}
+
+.board {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 220px;
+}
+
+.board-canvas,
+.chart-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: manipulation;
+}
+
+.chart {
+  position: relative;
+  height: 96px;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.golf-controls {
+  padding: 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ctrl-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+}
+
+.ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ctrl-lr {
+  flex: 1 1 auto;
+  max-width: 520px;
+}
+
+.ctrl-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.ctrl-shoot {
+  margin-left: auto;
+}
+
+.lr-slider {
+  flex: 1 1 auto;
+  min-width: 120px;
+  accent-color: var(--cyan);
+  height: 40px;
+  margin: 0;
+}
+
+.lr-val {
+  width: 56px;
+  text-align: right;
+  font-size: 16px;
+}
+
+.segs {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.seg-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seg {
+  height: 40px;
+  padding: 0 14px;
+  background: var(--board);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+  font-family: var(--f-head);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.seg.is-on {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.seg:disabled {
+  cursor: default;
+}
+
+.beta {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.btn-shoot {
+  height: 48px;
+  padding: 0 32px;
+}
+
+.btn-shoot .term-en {
+  font-size: 16px;
+}
+
+.lab-note {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+  min-height: 34px;
+}
+
+.note-label {
+  flex: 0 0 auto;
+  color: var(--cyan);
+}
+
+.note-text.is-warn {
+  color: var(--vermilion);
+}
+
+/* 盤の上の板 */
+.panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100% - 16px);
+  overflow: auto;
+  background: var(--board);
+  border: 1px solid var(--rule);
+  padding: 24px;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel.is-open {
+  display: flex;
+  animation: fade 150ms ease-out;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.panel-title {
+  font-family: var(--f-head);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+
+.panel-title .term-en {
+  font-size: 20px;
+}
+
+.is-good {
+  color: var(--leaf);
+}
+
+.panel-score {
+  font-size: 18px;
+}
+
+.panel-name .term-en {
+  font-size: 16px;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.res-table {
+  border-top: 1px solid var(--rule);
+}
+
+.res-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px 104px 40px;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.res-row > :not(:first-child) {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.res-hole .term-en {
+  font-size: 13px;
+}
+
+.res-total {
+  font-weight: 500;
+}
+
+.res-best {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.new-best {
+  color: var(--leaf);
+}
+
+.new-best .term-en {
+  letter-spacing: 0.12em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel.is-open {
+    animation: none;
+  }
+}
+
+/* ---- スマホの幅 ---- */
+@media (max-width: 760px) {
+  body {
+    font-size: 13px;
+  }
+
+  .label {
+    font-size: 11px;
+  }
+
+  .term-ja {
+    font-size: 10px;
+  }
+
+  .btn,
+  .seg {
+    height: 44px;
+  }
+
+  .menu {
+    padding: 24px 16px;
+  }
+
+  .menu-inner {
+    gap: 24px;
+  }
+
+  .site-title {
+    font-size: 32px;
+  }
+
+  .xp-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "no name best"
+      "no state state";
+    gap: 4px 12px;
+    padding: 12px;
+  }
+
+  .xp-headrow {
+    grid-template-areas: "no name best";
+    padding: 8px 12px;
+  }
+
+  .xp-no {
+    grid-area: no;
+    align-self: start;
+  }
+
+  .xp-name {
+    grid-area: name;
+  }
+
+  .xp-best {
+    grid-area: best;
+    text-align: right;
+  }
+
+  .xp-topic {
+    display: none;
+  }
+
+  .xp-state {
+    grid-area: state;
+    justify-content: flex-start;
+  }
+
+  .xp-headrow .xp-state {
+    display: none;
+  }
+
+  .xp-en {
+    font-size: 16px;
+  }
+
+  .rank-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .rank-box {
+    padding: 12px;
+  }
+
+  .golf {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .golf-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .golf-title {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .game-title .term-en {
+    font-size: 16px;
+    letter-spacing: 0.04em;
+  }
+
+  .game-title {
+    order: -1;
+  }
+
+  .golf-title .btn {
+    padding: 0 10px;
+  }
+
+  .readouts {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 0.7fr 0.7fr 1.3fr;
+    gap: 8px;
+  }
+
+  .readout {
+    min-width: 0;
+  }
+
+  .readout .term {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .readout-val {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .big {
+    font-size: 18px;
+  }
+
+  .readout-sub .term-en {
+    font-size: 11px;
+  }
+
+  .board {
+    flex: 0 0 auto;
+    height: 52vh;
+    min-height: 260px;
+  }
+
+  .chart {
+    height: 72px;
+  }
+
+  .golf-controls {
+    padding: 12px 16px 24px;
+  }
+
+  .ctrl-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .ctrl-lr {
+    max-width: none;
+  }
+
+  .ctrl-shoot {
+    margin-left: 0;
+  }
+
+  .ctrl-shoot .btn-wrap {
+    display: flex;
+  }
+
+  .btn-shoot {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .lab-note {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
