@@ -1,6 +1,7 @@
 import "./style.css";
 import { parseRoute, routeHash, type Route } from "./lib/route";
 import { createDefense } from "./screens/defense";
+import { createExplain } from "./screens/explain";
 import { createGolf } from "./screens/golf";
 import { createMenu } from "./screens/menu";
 import { createReward } from "./screens/reward";
@@ -26,7 +27,9 @@ function render(): void {
   current =
     route === "golf"
       ? createGolf({ go })
-      : route === "defense"
+      : route === "explain"
+        ? createExplain({ go })
+        : route === "defense"
         ? createDefense({ go })
         : route === "rogue"
           ? createRogue({ go })
