@@ -453,6 +453,11 @@ p {
   letter-spacing: 0.06em;
 }
 
+/* TOP と 3D で幅が変わって、横の SOUND がずれないようにする */
+.ctrl-view .seg {
+  min-width: 64px;
+}
+
 .seg.is-on {
   border-color: var(--cyan);
   color: var(--cyan);
