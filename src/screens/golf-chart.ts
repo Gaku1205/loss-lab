@@ -21,7 +21,11 @@ const FLOOR = 1e-4;
 export class LossChart {
   private ctx: CanvasRenderingContext2D;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  /** mini：上の帯の小さな折れ線（見出し・余白なし） */
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private mini = false,
+  ) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D の描画が使えません");
     this.ctx = ctx;
@@ -39,13 +43,17 @@ export class LossChart {
     }
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = COLORS.board;
-    ctx.fillRect(0, 0, w, h);
+    if (this.mini) {
+      ctx.clearRect(0, 0, w, h);
+    } else {
+      ctx.fillStyle = COLORS.board;
+      ctx.fillRect(0, 0, w, h);
+    }
 
-    const padL = w < 600 ? 16 : 32;
+    const padL = this.mini ? 4 : w < 600 ? 16 : 32;
     const padR = padL;
-    const padT = 24;
-    const padB = 8;
+    const padT = this.mini ? 6 : 24;
+    const padB = this.mini ? 6 : 8;
     const iw = w - padL - padR;
     const ih = h - padT - padB;
     const lo = Math.log10(FLOOR);
@@ -85,6 +93,7 @@ export class LossChart {
       ctx.stroke();
     }
     ctx.shadowBlur = 0;
+    if (this.mini) return;
 
     ctx.fillStyle = COLORS.text;
     ctx.font = '600 11px "Chakra Petch", system-ui, sans-serif';
