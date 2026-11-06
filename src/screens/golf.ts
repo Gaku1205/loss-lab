@@ -261,6 +261,11 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     const code = textField("PASSPHRASE", "合言葉", save.board.code ?? "");
     const nick = textField("NICKNAME", "ニックネーム", save.board.nickname ?? "");
     const btn = el("button", "btn btn-primary", [term("SUBMIT", "記録を送る")], { type: "button" });
+    // Enter・Space を画面全体のキー操作に渡さない（渡すと板が閉じる／クリックが起きない）
+    btn.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") e.stopPropagation();
+    });
+    btn.addEventListener("keyup", (e) => e.stopPropagation());
     const status = el("span", "board-status");
     let busySending = false;
     let sent = false;
