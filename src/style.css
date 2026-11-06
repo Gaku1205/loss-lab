@@ -817,6 +817,67 @@ p {
   margin-top: 8px;
 }
 
+/* 上の帯の ? ボタン */
+.title-btns {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-help {
+  width: 40px;
+  padding: 0;
+}
+
+/* 遊び方の板 */
+.howto-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.howto-label {
+  color: var(--cyan);
+}
+
+.howto-pos {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.howto-ticks {
+  display: flex;
+  gap: 4px;
+}
+
+.howto-tick {
+  flex: 1 1 0;
+  height: 4px;
+  background: var(--rule);
+}
+
+.howto-tick.is-on {
+  background: var(--cyan);
+}
+
+.howto-body {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.howto-actions {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.howto-skip {
+  display: flex;
+}
+
 .res-table {
   border-top: 1px solid var(--rule);
 }
@@ -1226,6 +1287,31 @@ p {
 
   .golf-title .btn {
     padding: 0 10px;
+  }
+
+  .title-btns {
+    gap: 8px;
+  }
+
+  /* ボタンが2つになったので、ゲーム名は次の行に回す */
+  .golf-title {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px 12px;
+  }
+
+  .golf-title .golf-name {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .btn-help {
+    width: 44px;
+    padding: 0;
+  }
+
+  .howto-body {
+    font-size: 13px;
   }
 
   .readouts {
