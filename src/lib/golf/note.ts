@@ -19,16 +19,22 @@ export function formatLr(lr: number): string {
   return lr < 0.01 ? lr.toFixed(4) : lr < 0.1 ? lr.toFixed(3) : lr.toFixed(2);
 }
 
-/** ホールを始めた時の LAB NOTE（ホールの番号 1〜3） */
+const INTRO_NOTES: readonly string[] = [
+  "丸い谷。まず学習率 η を変えて、1打で進む距離の違いを記録する。",
+  "細長い谷。縦は急、横はゆるい。GD と Momentum を比べる。",
+  "曲がった谷。谷の向きが途中で変わる。η を打つたびに見直す。",
+  "ここから風が吹く。風はミニバッチごとの勾配のばらつき（SGD のノイズ）。打つたびに軌跡が揺れる。",
+  "細長い谷に縦の風。急な向きに揺さぶられる。η を上げすぎると谷の壁を越える。",
+  "窪みが二つ。手前の浅い窪みは局所解。GD では抜けにくい。勢いで越える。",
+  "斜めの細い谷。縦と横の急さが 60 倍ちがう。GD では谷に沿って進まない。",
+  "平らな台地。遠くは勾配が小さく、ほとんど進まない。谷底の近くだけ急になる。",
+  "嵐の谷。風がいちばん強い。勢いを付けると風で暴れる。η を控えめに。",
+  "最終ホール。逆に曲がった谷に強い風。これまでの打ち方を組み合わせる。",
+];
+
+/** ホールを始めた時の LAB NOTE（ホールの番号 1〜10） */
 export function holeIntroNote(no: number): string {
-  switch (no) {
-    case 1:
-      return "丸い谷。まず学習率 η を変えて、1打で進む距離の違いを記録する。";
-    case 2:
-      return "細長い谷。縦は急、横はゆるい。GD と Momentum を比べる。";
-    default:
-      return "曲がった谷。谷の向きが途中で変わる。η を打つたびに見直す。";
-  }
+  return INTRO_NOTES[Math.min(INTRO_NOTES.length, Math.max(1, no)) - 1];
 }
 
 export interface NoteInput {

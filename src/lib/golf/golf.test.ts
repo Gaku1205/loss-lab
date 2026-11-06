@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { contourLevels, contourSegments } from "./contour";
-import { applyShot, isFinished, newRun } from "./game";
+import { applyShot, currentHole, isFinished, newRun } from "./game";
 import { HOLES, TOTAL_PAR } from "./holes";
-import { barelyMoved, formatLoss, lossRose, shotNote } from "./note";
-import { step } from "./optimizer";
+import { barelyMoved, formatLoss, holeIntroNote, lossRose, shotNote } from "./note";
+import { step, type Method } from "./optimizer";
+import { formatWind, noisyGrad, WIND_MAX, windDir, windRng, type Wind } from "./wind";
 import { formatDiff, scoreName, totalStrokes, betterBest } from "./score";
 import { isInCup, isOut, lrToSlider, simulateShot, sliderToLr, type ShotResult } from "./shot";
 
@@ -29,7 +30,155 @@ describe("損失の地形と勾配", () => {
       }
     }
   });
-  it("パーの合計は 10", () => expect(TOTAL_PAR).toBe(10));
+  it("10ホールで、パーの合計は 35", () => {
+    expect(HOLES.length).toBe(10);
+    expect(HOLES.map((h) => h.no)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(TOTAL_PAR).toBe(35);
+  });
+  it("スタートとカップはコースの中", () => {
+    for (const h of HOLES) {
+      expect(isOut(h.start, h.bounds)).toBe(false);
+      expect(isOut(h.cup, h.bounds)).toBe(false);
+      expect(h.limit).toBeGreaterThan(h.par);
+    }
+  });
+  it("ホール6には、谷底より高い浅い窪み（局所解）がある", () => {
+    const h = HOLES[5];
+    // x = −1 の近くで勾配の x 成分が 0 になる所を探す
+    let lo = -1.2;
+    let hi = -0.9;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      if (h.grad({ x: mid, y: 0 }).x < 0) lo = mid;
+      else hi = mid;
+    }
+    const pit = { x: lo, y: 0 };
+    expect(Math.abs(h.grad(pit).x)).toBeLessThan(1e-6);
+    expect(h.loss(pit)).toBeGreaterThan(0.1);
+    expect(h.loss({ x: 0, y: 0 })).toBeGreaterThan(h.loss(pit));
+  });
+});
+
+describe("風（SGD のノイズ）", () => {
+  it("風は4ホール目から。強さは上限以内", () => {
+    expect(HOLES.slice(0, 3).every((h) => h.wind === null)).toBe(true);
+    for (const h of HOLES.slice(3)) {
+      expect(h.wind).not.toBeNull();
+      expect(h.wind!.strength).toBeGreaterThan(0);
+      expect(h.wind!.strength).toBeLessThanOrEqual(WIND_MAX);
+    }
+    // 最後の方ほど強い風がある
+    expect(Math.max(...HOLES.slice(8).map((h) => h.wind!.strength))).toBe(WIND_MAX);
+  });
+  it("同じ種・同じ打なら同じ風になる", () => {
+    const w: Wind = { dir: 30, strength: 0.2, seed: 42 };
+    const a = windRng(w, 3);
+    const b = windRng(w, 3);
+    const xs = Array.from({ length: 10 }, () => a());
+    expect(Array.from({ length: 10 }, () => b())).toEqual(xs);
+    const c = windRng(w, 4);
+    expect(Array.from({ length: 10 }, () => c())).not.toEqual(xs);
+    const d = windRng({ ...w, seed: 43 }, 3);
+    expect(Array.from({ length: 10 }, () => d())).not.toEqual(xs);
+  });
+  it("同じ種・同じ操作なら、風のあるホールの1打は同じ軌跡になる", () => {
+    for (const h of HOLES.slice(3)) {
+      const a = simulateShot(h, h.start, 0.05, "momentum", 2);
+      const b = simulateShot(h, h.start, 0.05, "momentum", 2);
+      expect(b).toEqual(a);
+      const c = simulateShot(h, h.start, 0.05, "momentum", 3);
+      expect(c.path).not.toEqual(a.path);
+    }
+  });
+  it("風があると、無風の時と軌跡が少しずれる", () => {
+    const h = HOLES[3];
+    const calm = { ...h, wind: null };
+    const windy = simulateShot(h, h.start, 0.1, "gd");
+    const still = simulateShot(calm, h.start, 0.1, "gd");
+    const end = (r: ShotResult) => r.path[r.path.length - 1];
+    const gap = Math.hypot(end(windy).x - end(still).x, end(windy).y - end(still).y);
+    expect(gap).toBeGreaterThan(0.005);
+    expect(gap).toBeLessThan(0.5);
+  });
+  it("ノイズは勾配の大きさに比例し、谷底では 0。勾配の逆向きにはならない", () => {
+    const w: Wind = { dir: 90, strength: WIND_MAX, seed: 1 };
+    const r = windRng(w, 0);
+    expect(noisyGrad({ x: 0, y: 0 }, w, r)).toEqual({ x: 0, y: 0 });
+    for (let i = 0; i < 500; i++) {
+      const g = { x: Math.cos(i), y: Math.sin(i * 1.7) * 2 };
+      const n = noisyGrad(g, w, r);
+      expect(n.x * g.x + n.y * g.y).toBeGreaterThan(0);
+    }
+  });
+  it("向きは度で、0 が右・90 が上", () => {
+    const e = windDir({ dir: 0, strength: 0.1, seed: 1 });
+    const n = windDir({ dir: 90, strength: 0.1, seed: 1 });
+    expect(e.x).toBeCloseTo(1);
+    expect(e.y).toBeCloseTo(0);
+    expect(n.x).toBeCloseTo(0);
+    expect(n.y).toBeCloseTo(1);
+    expect(formatWind(0.2)).toBe("0.20");
+  });
+});
+
+/** 同じ学習率・手法で打ち続けて、カップに入った打数（maxStrokes までに入らなければ null）。OB なら打った位置から打ち直す */
+function strokesToCup(hi: number, lr: number, m: Method, maxStrokes: number): number | null {
+  const h = HOLES[hi];
+  let p = h.start;
+  for (let n = 0; n < maxStrokes; n++) {
+    const r = simulateShot(h, p, lr, m, n);
+    if (r.outcome === "cup") return n + 1;
+    if (r.outcome === "stop") p = r.path[r.path.length - 1];
+  }
+  return null;
+}
+
+describe("各ホールがクリアできる", () => {
+  // ホールごとの、パー以内で入る打ち方（docs/spec.md の目安）
+  const plan: [number, Method][] = [
+    [0.4, "gd"],
+    [0.079, "momentum"],
+    [0.079, "momentum"],
+    [0.25, "gd"],
+    [0.071, "momentum"],
+    [0.13, "momentum"],
+    [0.1, "momentum"],
+    [0.5, "gd"],
+    [0.25, "gd"],
+    [0.063, "momentum"],
+  ];
+  it("目安の打ち方なら、どのホールもパー以内で入る", () => {
+    HOLES.forEach((h, i) => {
+      const n = strokesToCup(i, plan[i][0], plan[i][1], h.limit);
+      expect(n, `ホール${h.no}`).not.toBeNull();
+      expect(n!, `ホール${h.no}`).toBeLessThanOrEqual(h.par);
+    });
+  });
+  it("10ホールを通して遊ぶと結果まで行く", () => {
+    let p = newRun();
+    let finished = false;
+    for (let guard = 0; guard < 100 && !finished; guard++) {
+      const h = currentHole(p)!;
+      const [lr, m] = plan[p.hole];
+      const shot = simulateShot(h, p.pos, lr, m, p.strokes);
+      const a = applyShot({ ...p, lr, method: m }, shot);
+      expect(a.event).not.toBe("fail");
+      p = a.progress;
+      finished = a.event === "finish";
+    }
+    expect(finished).toBe(true);
+    expect(isFinished(p)).toBe(true);
+    expect(p.cards).toHaveLength(10);
+    expect(totalStrokes(p.cards)).toBeLessThanOrEqual(TOTAL_PAR);
+  });
+  it("手法や学習率を選ばないと入らないホールがある", () => {
+    // ホール6：GD は浅い窪み（局所解）に止まる
+    expect(strokesToCup(5, 0.1, "gd", HOLES[5].limit)).toBeNull();
+    // ホール7：GD は谷に沿って進まない
+    expect(strokesToCup(6, 0.13, "gd", HOLES[6].limit)).toBeNull();
+    // ホール9：強い風で Momentum は暴れる
+    expect(strokesToCup(8, 0.05, "momentum", HOLES[8].limit)).toBeNull();
+  });
 });
 
 describe("GD と Momentum の1ステップ", () => {
@@ -137,12 +286,20 @@ describe("打数の進み方", () => {
     const a = applyShot({ ...newRun(), strokes: HOLES[0].limit - 1 }, cup);
     expect(a.event).toBe("cup");
   });
-  it("3ホール目のカップで終わり", () => {
+  it("3ホール目のカップでは終わらず、4ホール目へ", () => {
     const p = { ...newRun(), hole: 2, cards: [3, 4], pos: HOLES[2].start };
     const a = applyShot(p, { ...cup, path: [HOLES[2].start, HOLES[2].cup] });
+    expect(a.event).toBe("cup");
+    expect(a.progress.hole).toBe(3);
+    expect(a.progress.pos).toEqual(HOLES[3].start);
+  });
+  it("10ホール目のカップで終わり", () => {
+    const cards = [3, 4, 3, 3, 4, 4, 4, 3, 3];
+    const p = { ...newRun(), hole: 9, cards, pos: HOLES[9].start };
+    const a = applyShot(p, { ...cup, path: [HOLES[9].start, HOLES[9].cup] });
     expect(a.event).toBe("finish");
     expect(isFinished(a.progress)).toBe(true);
-    expect(a.progress.cards).toEqual([3, 4, 1]);
+    expect(a.progress.cards).toEqual([...cards, 1]);
   });
 });
 
@@ -195,6 +352,11 @@ describe("LAB NOTE", () => {
     expect(shotNote({ ...base, event: "stop", rose: true })).toContain("振動");
     expect(shotNote({ ...base, event: "stop" })).toContain("勾配に沿って");
     expect(shotNote({ ...base, event: "stop" })).not.toContain("\n");
+  });
+  it("ホールを始めた時の1行は、10ホールそれぞれ別", () => {
+    const notes = HOLES.map((h) => holeIntroNote(h.no));
+    expect(new Set(notes).size).toBe(10);
+    expect(holeIntroNote(4)).toContain("SGD");
   });
   it("損失の数字", () => {
     expect(formatLoss(1.23456)).toBe("1.23");

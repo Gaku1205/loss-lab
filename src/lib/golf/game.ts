@@ -3,9 +3,9 @@ import type { Method } from "./optimizer";
 import type { ShotResult } from "./shot";
 import type { Vec } from "./vec";
 
-/** 1回の挑戦（3ホール）の進み具合。これをそのまま保存する */
+/** 1回の挑戦（10ホール）の進み具合。これをそのまま保存する */
 export interface GolfProgress {
-  /** 今のホールの番号（0 始まり）。HOLES.length なら3ホールを終えた */
+  /** 今のホールの番号（0 始まり）。HOLES.length なら全ホールを終えた */
   hole: number;
   /** 玉の位置 */
   pos: Vec;
@@ -35,7 +35,7 @@ export function currentHole(p: GolfProgress): Hole | null {
 /**
  * 打ったあとに起きたこと
  * - cup：カップに入った（次のホールへ進んだ）
- * - finish：3ホール目のカップに入った（挑戦を終えた）
+ * - finish：最後のホールのカップに入った（挑戦を終えた）
  * - ob：盤の外に出た。玉は打った位置に戻り、打数は＋1
  * - stop：止まった所から次を打つ
  * - fail：打数の上限に達してもカップに入らなかった。ホールを最初からやり直す
