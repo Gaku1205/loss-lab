@@ -928,6 +928,20 @@ p {
   color: var(--vermilion);
 }
 
+.defense .howto-label {
+  color: var(--vermilion);
+}
+
+.defense .howto-actions .btn-primary,
+.defense .howto-actions .btn-primary:hover:not(:disabled) {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
+
+.defense .howto-tick.is-on {
+  background: var(--vermilion);
+}
+
 .btn-def,
 .btn-def:hover:not(:disabled) {
   border-color: var(--vermilion);

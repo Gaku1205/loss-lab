@@ -67,3 +67,15 @@ export const GOLF_HOWTO: readonly HowtoCard[] = [
     body: "η と手法を決めて SHOOT。打った後は LAB NOTE を読んで、次の η を決める。盤の外へ出ると OB（打数＋1）。打数が上限に達すると、そのホールは最初から。",
   },
 ];
+
+/** 境界防衛線の遊び方（4枚。文言は docs/design.md） */
+export const DEFENSE_HOWTO: readonly HowtoCard[] = [
+  { en: "GOAL", ja: "ゴール", body: "流れてくる ○ と ● を、陣地で正しく仕分けて守る。誤りやすり抜けでライフが減り、0 になるとその波は失敗。" },
+  {
+    en: "NEURONS",
+    ja: "ニューロン",
+    body: "盤を押してニューロンを置く。置いた物を押すと外せる。広い物はなだらかに、狭い物は強く効く。○ と ● の陣地の境目が境界線。",
+  },
+  { en: "OVERFIT", ja: "過学習", body: "練習データのノイズまで拾うと、練習の正解率は上がるが、初見のテストで崩れる。これが過学習。" },
+  { en: "CONTROLS", ja: "操作", body: "波の間にニューロンを置き、START WAVE で流す。最終波の点はテストデータで、流れるまで見えない。" },
+];
