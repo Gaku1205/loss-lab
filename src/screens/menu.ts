@@ -1,3 +1,4 @@
+import { isDefenseFinished } from "../lib/defense/game";
 import { isFinished } from "../lib/golf/game";
 import type { Route } from "../lib/route";
 import { hasNoRecord } from "../lib/save";
@@ -11,22 +12,31 @@ interface GameRow {
   topic: string;
   /** 差し色の CSS 変数名 */
   accent: string;
-  ready: boolean;
+  /** 開く画面（準備中なら null） */
+  route: Route | null;
+  /** 開くキー（e.key） */
+  key: string;
 }
 
 const GAMES: readonly GameRow[] = [
-  { no: "01", en: "Gradient Golf", ja: "勾配ゴルフ", topic: "学習率と最適化手法", accent: "--cyan", ready: true },
-  { no: "02", en: "Boundary Defense", ja: "境界防衛線", topic: "過学習と汎化", accent: "--vermilion", ready: false },
-  { no: "03", en: "Model Rogue", ja: "モデル・ローグ", topic: "モデル設計", accent: "--amber", ready: false },
-  { no: "04", en: "Reward Lab", ja: "報酬設計室", topic: "報酬設計", accent: "--leaf", ready: false },
+  { no: "01", en: "Gradient Golf", ja: "勾配ゴルフ", topic: "学習率と最適化手法", accent: "--cyan", route: "golf", key: "Enter" },
+  { no: "02", en: "Boundary Defense", ja: "境界防衛線", topic: "過学習と汎化", accent: "--vermilion", route: "defense", key: "2" },
+  { no: "03", en: "Model Rogue", ja: "モデル・ローグ", topic: "モデル設計", accent: "--amber", route: null, key: "" },
+  { no: "04", en: "Reward Lab", ja: "報酬設計室", topic: "報酬設計", accent: "--leaf", route: null, key: "" },
 ];
 
 export function createMenu(nav: { go(r: Route): void }): Screen {
   const save = readSave();
-  const best = save.golf.best;
   const prog = save.golf.progress;
-  const midway = prog !== null && !isFinished(prog) && (prog.hole > 0 || prog.strokes > 0);
-  const open = () => nav.go("golf");
+  const dprog = save.defense.progress;
+  const midway: Record<string, boolean> = {
+    golf: prog !== null && !isFinished(prog) && (prog.hole > 0 || prog.strokes > 0),
+    defense: dprog !== null && !isDefenseFinished(dprog) && (dprog.wave > 0 || dprog.neurons.length > 0),
+  };
+  const bestText: Record<string, string> = {
+    golf: save.golf.best !== null ? `${save.golf.best} 打` : "—",
+    defense: save.defense.best !== null ? `${save.defense.best}%` : "—",
+  };
 
   const head = el("header", "menu-head", [
     el("h1", "site-title", ["Loss Lab"]),
@@ -43,27 +53,27 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
 
   const rows = GAMES.map((g) => {
     const name = el("div", "xp-name", [el("span", "xp-en", [g.en]), el("span", "xp-ja", [g.ja])]);
-    const bestText = g.ready && best !== null ? `${best} 打` : "—";
+    const route = g.route;
     let state: HTMLElement;
-    if (g.ready) {
-      if (hasNoRecord(save)) name.append(el("span", "start-here", ["最初はここから"]));
-      const btn = el("button", "btn btn-primary", [midway ? term("CONTINUE", "続きから") : term("OPEN", "開く")], { type: "button" });
+    if (route) {
+      if (route === "golf" && hasNoRecord(save)) name.append(el("span", "start-here", ["最初はここから"]));
+      const btn = el("button", `btn btn-primary${route === "defense" ? " btn-def" : ""}`, [midway[route] ? term("CONTINUE", "続きから") : term("OPEN", "開く")], { type: "button" });
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        open();
+        nav.go(route);
       });
-      state = el("div", "xp-state", [btn, keycap("Enter")]);
+      state = el("div", "xp-state", [btn, keycap(g.key)]);
     } else {
       state = el("div", "xp-state", [el("span", "soon", ["準備中"])]);
     }
     const row = el(
       "div",
-      `xp-row${g.ready ? " is-ready" : " is-soon"}`,
-      [el("span", "xp-no num", [g.no]), name, el("span", "xp-topic", [g.topic]), el("span", "xp-best num", [bestText]), state],
-      g.ready ? {} : { "aria-disabled": "true" },
+      `xp-row${route ? " is-ready" : " is-soon"}`,
+      [el("span", "xp-no num", [g.no]), name, el("span", "xp-topic", [g.topic]), el("span", "xp-best num", [route ? bestText[route] : "—"]), state],
+      route ? {} : { "aria-disabled": "true" },
     );
     row.style.setProperty("--accent", `var(${g.accent})`);
-    if (g.ready) row.addEventListener("click", open);
+    if (route) row.addEventListener("click", () => nav.go(route));
     return row;
   });
 
@@ -81,9 +91,13 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
   const root = el("main", "screen menu", [el("div", "menu-inner", [head, table, ranks, foot])]);
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // ボタンにフォーカスがある時の Enter は、そのボタンを押したことにする
+    if (e.key === "Enter" && e.target instanceof HTMLButtonElement) return;
+    const g = GAMES.find((x) => x.route && x.key === e.key);
+    if (g?.route) {
       e.preventDefault();
-      open();
+      nav.go(g.route);
     }
   };
   window.addEventListener("keydown", onKey);

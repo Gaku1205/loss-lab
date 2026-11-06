@@ -1,6 +1,9 @@
 import { HOLES } from "./golf/holes";
 import type { GolfProgress } from "./golf/game";
 import { LR_MAX, LR_MIN } from "./golf/shot";
+import type { DefenseProgress } from "./defense/game";
+import { inField, remaining, type Neuron } from "./defense/model";
+import { WAVES } from "./defense/wave";
 
 /** localStorage のキー */
 export const SAVE_KEY = "loss-lab:v1";
@@ -12,10 +15,16 @@ export interface SaveData {
     /** 3ホールの合計打数の最高記録（少ないほど良い） */
     best: number | null;
   };
+  defense: {
+    /** 途中の挑戦。無ければ null */
+    progress: DefenseProgress | null;
+    /** 最終波を守り切った時のテストの正解率（%）の最高記録（高いほど良い） */
+    best: number | null;
+  };
 }
 
 export function emptySave(): SaveData {
-  return { golf: { progress: null, best: null } };
+  return { golf: { progress: null, best: null }, defense: { progress: null, best: null } };
 }
 
 type Rec = Record<string, unknown>;
@@ -56,11 +65,41 @@ export function parseSave(raw: string | null): SaveData {
   } catch {
     return out;
   }
-  if (!isRec(data) || !isRec(data.golf)) return out;
-  const { progress, best } = data.golf;
-  out.golf.progress = parseProgress(progress);
-  out.golf.best = isInt(best, HOLES.length, 1000) ? best : null;
+  if (!isRec(data)) return out;
+  if (isRec(data.golf)) {
+    const { progress, best } = data.golf;
+    out.golf.progress = parseProgress(progress);
+    out.golf.best = isInt(best, HOLES.length, 1000) ? best : null;
+  }
+  if (isRec(data.defense)) {
+    const { progress, best } = data.defense;
+    out.defense.progress = parseDefense(progress);
+    out.defense.best = isInt(best, 0, 100) ? best : null;
+  }
   return out;
+}
+
+function parseNeuron(v: unknown): Neuron | null {
+  if (!isRec(v)) return null;
+  const { x, y, kind, cls } = v;
+  if (!isNum(x) || !isNum(y) || !inField({ x, y })) return null;
+  if (kind !== "wide" && kind !== "narrow") return null;
+  if (cls !== "a" && cls !== "b") return null;
+  return { x, y, kind, cls };
+}
+
+function parseDefense(v: unknown): DefenseProgress | null {
+  if (!isRec(v)) return null;
+  const { wave, neurons } = v;
+  if (!isInt(wave, 0, WAVES.length) || !Array.isArray(neurons)) return null;
+  const list: Neuron[] = [];
+  for (const n of neurons) {
+    const p = parseNeuron(n);
+    if (!p) return null;
+    list.push(p);
+  }
+  if (remaining(list, "wide") < 0 || remaining(list, "narrow") < 0) return null;
+  return { wave, neurons: list };
 }
 
 export function serializeSave(data: SaveData): string {
