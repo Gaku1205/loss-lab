@@ -7,9 +7,11 @@ import { formatDiff } from "../lib/golf/score";
 import type { Vec } from "../lib/golf/vec";
 import type { Route } from "../lib/route";
 import type { SaveData } from "../lib/save";
-import { readSave, saveData } from "../store";
+import { isLast, nextCard, prevCard } from "../lib/howto";
+import { readHowtoSeen, readSave, saveData, saveHowtoSeen } from "../store";
 import { el, keycap, prefersReducedMotion, term, type Screen } from "../ui";
 import { DefenseBoard, type DotView } from "./defense-board";
+import { buildHowto, DEFENSE_HOWTO } from "./howto";
 
 const ALARM_MS = 600;
 /** 置いたニューロンを押して外せる距離（画面の px） */
@@ -28,7 +30,10 @@ const TOOLS: readonly Tool[] = [
   { kind: "narrow", cls: "b", key: "4" },
 ];
 
+const HOWTO_GAME = "defense";
+
 type Overlay =
+  | { kind: "howto"; index: number }
   | { kind: "clear"; wave: number; hits: number; total: number; life: number }
   | { kind: "fail"; wave: number; trainPct: number; testPct: number }
   | { kind: "result"; trainPct: number; testPct: number; newBest: boolean }
@@ -60,6 +65,7 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
   let noteWarn = false;
   let overlay: Overlay = null;
   let raf = 0;
+  let howtoSeen = readHowtoSeen(HOWTO_GAME);
 
   if (isDefenseFinished(progress)) {
     const tr = trainPercent(progress.neurons);
@@ -69,6 +75,8 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
     note = waveNote({ event: "finish", wave: WAVES.length - 1, misses: 0, trainPct: tr, testPct: te }).text;
   } else {
     note = waveIntroNote(progress.wave);
+    // 初めて開いた時だけ遊び方の板を自動で出す（結果の板から始まる時は出さない）
+    if (!howtoSeen) overlay = { kind: "howto", index: 0 };
   }
 
   const persist = () => {
@@ -79,6 +87,8 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
   // ---- 上の帯（数字） ----
   const menuBtn = el("button", "btn", [term("MENU", "メニュー")], { type: "button" });
   menuBtn.addEventListener("click", () => nav.go("menu"));
+  const helpBtn = el("button", "btn btn-help num", ["?"], { type: "button", "aria-label": "遊び方" });
+  helpBtn.addEventListener("click", () => openHowto());
   const numWave = el("span", "num big");
   const numWaveKind = el("span", "readout-sub");
   const numPoints = el("span", "num big");
@@ -88,7 +98,10 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
   const readout = (en: string, ja: string, value: HTMLElement, extra?: HTMLElement) =>
     el("div", "readout", [term(en, ja, "label"), el("div", "readout-val", extra ? [value, extra] : [value])]);
   const top = el("header", "golf-top", [
-    el("div", "golf-title", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("h1", "game-title", [term("BOUNDARY DEFENSE", "境界防衛線")])]),
+    el("div", "golf-title", [
+      el("div", "title-btns", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("div", "btn-wrap", [helpBtn, keycap("H")])]),
+      el("h1", "game-title", [term("BOUNDARY DEFENSE", "境界防衛線")]),
+    ]),
     el("div", "readouts readouts-defense", [
       readout("WAVE", "ウェーブ", numWave, numWaveKind),
       readout("POINTS", "点", numPoints),
@@ -178,6 +191,7 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
     });
     clearBtn.disabled = !canBuild || progress.neurons.length === 0;
     startBtn.disabled = !canBuild;
+    helpBtn.disabled = !canOpenHowto();
     boardCanvas.classList.toggle("is-building", canBuild);
     noteText.textContent = note;
     noteText.classList.toggle("is-warn", noteWarn);
@@ -193,6 +207,12 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
     panel.classList.toggle("is-open", overlay !== null);
     boardWrap.classList.toggle("has-panel", overlay !== null);
     if (!overlay) return;
+    if (overlay.kind === "howto") {
+      panel.append(
+        ...buildHowto(DEFENSE_HOWTO, { index: overlay.index, count: DEFENSE_HOWTO.length }, { onNext: howtoNext, onBack: howtoBack, onClose: closeHowto }),
+      );
+      return;
+    }
     const toMenu = () => {
       const b = el("button", "btn", [term("MENU", "メニューへ")], { type: "button" });
       b.addEventListener("click", () => nav.go("menu"));
@@ -350,6 +370,37 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
     syncDom();
   }
 
+  /** 遊び方の板を開けるのは、波が流れていなくて他の板が出ていない間だけ */
+  function canOpenHowto(): boolean {
+    return running === null && overlay === null;
+  }
+
+  function openHowto(): void {
+    if (!canOpenHowto()) return;
+    overlay = { kind: "howto", index: 0 };
+    syncDom();
+  }
+
+  /** 閉じたら既読にする（開き直しでは状態を変えない） */
+  function closeHowto(): void {
+    if (overlay?.kind !== "howto") return;
+    overlay = null;
+    if (!howtoSeen) {
+      howtoSeen = true;
+      saveHowtoSeen(HOWTO_GAME);
+    }
+    syncDom();
+  }
+
+  function howtoStep(dir: 1 | -1): void {
+    if (overlay?.kind !== "howto") return;
+    const p = { index: overlay.index, count: DEFENSE_HOWTO.length };
+    overlay = { kind: "howto", index: (dir === 1 ? nextCard(p) : prevCard(p)).index };
+    syncDom();
+  }
+  const howtoNext = () => howtoStep(1);
+  const howtoBack = () => howtoStep(-1);
+
   function restart(): void {
     if (overlay?.kind !== "result") return;
     progress = newDefense();
@@ -407,7 +458,40 @@ export function createDefense(nav: { go(r: Route): void }): Screen {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // 遊び方の板が出ている間は、板の操作だけ受け付ける
+    if (overlay?.kind === "howto") {
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          closeHowto();
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (isLast({ index: overlay.index, count: DEFENSE_HOWTO.length })) closeHowto();
+          else howtoNext();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          howtoNext();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          howtoBack();
+          break;
+        case " ":
+        case "Spacebar":
+        case "ArrowUp":
+        case "ArrowDown":
+          e.preventDefault();
+          break;
+      }
+      return;
+    }
     switch (e.key) {
+      case "h":
+      case "H":
+        if (!e.repeat) openHowto();
+        break;
       case " ":
       case "Spacebar":
         e.preventDefault();
