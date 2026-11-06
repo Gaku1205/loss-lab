@@ -1537,3 +1537,234 @@ p {
     font-size: 11px;
   }
 }
+
+/* ---- 報酬設計室 ---- */
+.reward :focus-visible {
+  outline-color: var(--leaf);
+}
+
+.reward .note-label {
+  color: var(--leaf);
+}
+
+.btn-reward,
+.btn-reward:hover:not(:disabled) {
+  border-color: var(--leaf);
+  color: var(--leaf);
+}
+
+.rw-controls {
+  gap: 12px;
+}
+
+.rw-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+}
+
+.rw-shelf {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rw-shelf-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.shelf-count {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.rw-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.rw-block-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rw-block {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 56px;
+  padding: 8px 12px;
+  background: var(--board);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.rw-block:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.rw-block:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rw-check {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--rule);
+}
+
+.rw-block.is-on {
+  border-color: var(--leaf);
+}
+
+.rw-block.is-on .rw-check {
+  background: var(--leaf);
+  border-color: var(--leaf);
+}
+
+.rw-block.is-on .rw-val {
+  color: var(--leaf);
+}
+
+.rw-block-body {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rw-block-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rw-cond {
+  font-size: 13px;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.rw-val {
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
+.rw-block-en {
+  font-family: var(--f-head);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+  line-height: 1.2;
+}
+
+.rw-learn {
+  flex: 0 0 auto;
+}
+
+.rw-res-row {
+  grid-template-columns: minmax(0, 1fr) 64px 64px 64px;
+  align-items: center;
+}
+
+/* 表の見出しと課題名は、英語の下に日本語を置く */
+.rw-res-row .term {
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.rw-res-row > .term:not(:first-child) {
+  align-items: flex-end;
+}
+
+@media (max-width: 760px) {
+  .rw-board {
+    flex: 0 0 auto;
+    height: auto;
+    aspect-ratio: 10 / 7.4;
+    min-height: 0;
+  }
+
+  /* 板を出している間は、板が収まる高さまで盤を伸ばす */
+  .rw-board.has-panel {
+    aspect-ratio: auto;
+    min-height: 560px;
+  }
+
+  .rw-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .rw-blocks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .rw-block-wrap {
+    gap: 6px;
+  }
+
+  .rw-block {
+    height: auto;
+    min-height: 52px;
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .rw-cond {
+    font-size: 12px;
+  }
+
+  .rw-learn .btn-wrap {
+    display: flex;
+  }
+
+  .rw-learn .btn-shoot {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .readouts-reward {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .readouts-reward .term-en {
+    white-space: normal;
+    letter-spacing: 0.04em;
+  }
+
+  .reward .game-title .term {
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.3;
+  }
+
+  .rw-res-row {
+    grid-template-columns: minmax(0, 1fr) 52px 52px 52px;
+  }
+
+  .rw-res-row .term-en {
+    letter-spacing: 0.04em;
+  }
+}

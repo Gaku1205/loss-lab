@@ -96,6 +96,8 @@ describe("ページの切り替え", () => {
     expect(routeHash("defense")).toBe("#/defense");
     expect(parseRoute("#/rogue")).toBe("rogue");
     expect(routeHash("rogue")).toBe("#/rogue");
+    expect(parseRoute("#/reward")).toBe("reward");
+    expect(routeHash("reward")).toBe("#/reward");
     expect(routeHash("menu")).toBe("#/");
   });
 });

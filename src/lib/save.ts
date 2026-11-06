@@ -6,6 +6,10 @@ import { inField, remaining, type Neuron } from "./defense/model";
 import { WAVES } from "./defense/wave";
 import { BOSSES } from "./rogue/boss";
 import type { RogueBest } from "./rogue/game";
+import type { BlockId } from "./reward/blocks";
+import type { RewardProgress, TaskRecord } from "./reward/game";
+import { TASK_MAX, taskScore } from "./reward/score";
+import { MAX_BLOCKS, MAX_TRIALS, TASKS } from "./reward/tasks";
 
 /** localStorage のキー */
 export const SAVE_KEY = "loss-lab:v1";
@@ -25,10 +29,21 @@ export interface SaveData {
   };
   /** Model Rogue の最高記録（到達階の最高と、全階を倒した回数）。途中の挑戦は保存しない */
   rogue: RogueBest;
+  reward: {
+    /** 途中の挑戦。無ければ null */
+    progress: RewardProgress | null;
+    /** 3問の合計得点の最高記録（高いほど良い） */
+    best: number | null;
+  };
 }
 
 export function emptySave(): SaveData {
-  return { golf: { progress: null, best: null }, defense: { progress: null, best: null }, rogue: { floor: null, loops: 0 } };
+  return {
+    golf: { progress: null, best: null },
+    defense: { progress: null, best: null },
+    rogue: { floor: null, loops: 0 },
+    reward: { progress: null, best: null },
+  };
 }
 
 type Rec = Record<string, unknown>;
@@ -85,7 +100,40 @@ export function parseSave(raw: string | null): SaveData {
     out.rogue.floor = isInt(floor, 1, BOSSES.length) ? floor : null;
     out.rogue.loops = isInt(loops, 0, 100000) ? loops : 0;
   }
+  if (isRec(data.reward)) {
+    const { progress, best } = data.reward;
+    out.reward.progress = parseReward(progress);
+    out.reward.best = isInt(best, 0, TASK_MAX * TASKS.length) ? best : null;
+  }
   return out;
+}
+
+function parseRecord(v: unknown): TaskRecord | null {
+  if (!isRec(v)) return null;
+  const { blocks, trials, score } = v;
+  if (!isInt(blocks, 1, MAX_BLOCKS) || !isInt(trials, 1, MAX_TRIALS)) return null;
+  if (score !== taskScore(blocks, trials)) return null;
+  return { blocks, trials, score };
+}
+
+function parseReward(v: unknown): RewardProgress | null {
+  if (!isRec(v)) return null;
+  const { task, blocks, trials, records } = v;
+  if (!isInt(task, 0, TASKS.length - 1) || !Array.isArray(blocks) || !Array.isArray(records)) return null;
+  if (!isInt(trials, 0, MAX_TRIALS)) return null;
+  const palette: readonly string[] = TASKS[task].palette;
+  if (blocks.length > MAX_BLOCKS || new Set(blocks).size !== blocks.length) return null;
+  if (!blocks.every((b): b is BlockId => typeof b === "string" && palette.includes(b))) return null;
+  // クリアした課題の記録は、今の課題の前まで（今の課題をクリアして次を待っている時は今の課題まで）
+  if (records.length !== task && records.length !== task + 1) return null;
+  const list: TaskRecord[] = [];
+  for (const r of records) {
+    const p = parseRecord(r);
+    if (!p) return null;
+    list.push(p);
+  }
+  if (list.length === task + 1 && list[task].trials !== trials) return null;
+  return { task, blocks: [...blocks], trials, records: list };
 }
 
 function parseNeuron(v: unknown): Neuron | null {

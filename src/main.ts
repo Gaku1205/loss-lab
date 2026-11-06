@@ -3,6 +3,7 @@ import { parseRoute, routeHash, type Route } from "./lib/route";
 import { createDefense } from "./screens/defense";
 import { createGolf } from "./screens/golf";
 import { createMenu } from "./screens/menu";
+import { createReward } from "./screens/reward";
 import { createRogue } from "./screens/rogue";
 import type { Screen } from "./ui";
 
@@ -29,7 +30,9 @@ function render(): void {
         ? createDefense({ go })
         : route === "rogue"
           ? createRogue({ go })
-          : createMenu({ go });
+          : route === "reward"
+            ? createReward({ go })
+            : createMenu({ go });
   root.append(current.root);
   window.scrollTo(0, 0);
 }

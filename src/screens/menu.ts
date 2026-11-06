@@ -4,6 +4,7 @@ import type { Route } from "../lib/route";
 import { hasNoRecord } from "../lib/save";
 import { readSave } from "../store";
 import { el, keycap, term, type Screen } from "../ui";
+import { bestText as rewardBestText, isRewardMidway } from "./reward";
 import { bestText as rogueBestText } from "./rogue";
 
 interface GameRow {
@@ -23,7 +24,7 @@ const GAMES: readonly GameRow[] = [
   { no: "01", en: "Gradient Golf", ja: "勾配ゴルフ", topic: "学習率と最適化手法", accent: "--cyan", route: "golf", key: "Enter" },
   { no: "02", en: "Boundary Defense", ja: "境界防衛線", topic: "過学習と汎化", accent: "--vermilion", route: "defense", key: "2" },
   { no: "03", en: "Model Rogue", ja: "モデル・ローグ", topic: "モデル設計", accent: "--amber", route: "rogue", key: "3" },
-  { no: "04", en: "Reward Lab", ja: "報酬設計室", topic: "報酬設計", accent: "--leaf", route: null, key: "" },
+  { no: "04", en: "Reward Lab", ja: "報酬設計室", topic: "報酬設計", accent: "--leaf", route: "reward", key: "4" },
 ];
 
 export function createMenu(nav: { go(r: Route): void }): Screen {
@@ -33,11 +34,13 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
   const midway: Record<string, boolean> = {
     golf: prog !== null && !isFinished(prog) && (prog.hole > 0 || prog.strokes > 0),
     defense: dprog !== null && !isDefenseFinished(dprog) && (dprog.wave > 0 || dprog.neurons.length > 0),
+    reward: isRewardMidway(save.reward.progress),
   };
   const bestText: Record<string, string> = {
     golf: save.golf.best !== null ? `${save.golf.best} 打` : "—",
     defense: save.defense.best !== null ? `${save.defense.best}%` : "—",
     rogue: rogueBestText(save.rogue),
+    reward: rewardBestText(save.reward),
   };
 
   const head = el("header", "menu-head", [
@@ -59,7 +62,7 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
     let state: HTMLElement;
     if (route) {
       if (route === "golf" && hasNoRecord(save)) name.append(el("span", "start-here", ["最初はここから"]));
-      const accentCls = route === "defense" ? " btn-def" : route === "rogue" ? " btn-rogue" : "";
+      const accentCls = route === "defense" ? " btn-def" : route === "rogue" ? " btn-rogue" : route === "reward" ? " btn-reward" : "";
       const btn = el("button", `btn btn-primary${accentCls}`, [midway[route] ? term("CONTINUE", "続きから") : term("OPEN", "開く")], { type: "button" });
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
