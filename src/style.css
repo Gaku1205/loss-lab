@@ -1536,6 +1536,20 @@ p {
   color: var(--amber);
 }
 
+.rogue .howto-label {
+  color: var(--amber);
+}
+
+.rogue .howto-actions .btn-primary,
+.rogue .howto-actions .btn-primary:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.rogue .howto-tick.is-on {
+  background: var(--amber);
+}
+
 .btn-rogue,
 .btn-rogue:hover:not(:disabled) {
   border-color: var(--amber);
