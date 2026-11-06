@@ -8,19 +8,26 @@ import type { Vec } from "../lib/golf/vec";
 import { envConfig, submitScore, validateCode, validateNickname } from "../lib/board";
 import type { Route } from "../lib/route";
 import type { SaveData } from "../lib/save";
-import { readSave, readSoundOn, saveData, saveSoundOn } from "../store";
+import { isLast, nextCard, prevCard } from "../lib/howto";
+import { readHowtoSeen, readSave, readSoundOn, saveData, saveHowtoSeen, saveSoundOn } from "../store";
 import { el, keycap, prefersReducedMotion, term, type Screen } from "../ui";
 import { OFFLINE_TEXT, textField } from "./board-ui";
 import { Board, type Trail } from "./golf-board";
 import { LossChart, type LossPoint } from "./golf-chart";
 import { GolfSound } from "./golf-sound";
+import { buildHowto, GOLF_HOWTO } from "./howto";
 
 const STEP_MS = 70;
 const OB_HOLD_MS = 800;
 const ALARM_MS = 600;
 const SLIDER_TICKS = 60;
+const HOWTO_GAME = "golf";
 
-type Overlay = { kind: "clear"; holeNo: number; strokes: number; par: number } | { kind: "result"; newBest: boolean } | null;
+type Overlay =
+  | { kind: "clear"; holeNo: number; strokes: number; par: number }
+  | { kind: "result"; newBest: boolean }
+  | { kind: "howto"; index: number }
+  | null;
 
 interface Anim {
   shot: ShotResult;
@@ -48,7 +55,9 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   let holding = false;
   // OB の後に玉を戻す所
   let returnTo: Vec | null = null;
-  let overlay: Overlay = isFinished(progress) ? { kind: "result", newBest: false } : null;
+  // 初めて開いた時だけ遊び方の板を自動で出す（結果の板から始まる時は出さない）
+  let howtoSeen = readHowtoSeen(HOWTO_GAME);
+  let overlay: Overlay = isFinished(progress) ? { kind: "result", newBest: false } : howtoSeen ? null : { kind: "howto", index: 0 };
   let note = isFinished(progress) ? "" : holeIntroNote(viewIdx + 1);
   let noteWarn = false;
   let raf = 0;
@@ -64,6 +73,8 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   // ---- 上の帯（数字） ----
   const menuBtn = el("button", "btn", [term("MENU", "メニュー")], { type: "button" });
   menuBtn.addEventListener("click", () => nav.go("menu"));
+  const helpBtn = el("button", "btn btn-help num", ["?"], { type: "button", "aria-label": "遊び方" });
+  helpBtn.addEventListener("click", () => openHowto());
   const numHole = el("span", "num");
   const numHoleName = el("span", "hole-name");
   const numStrokes = el("span", "num big-a");
@@ -76,7 +87,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   const chartCanvas = el("canvas", "chart-canvas", [], { "aria-label": "打つごとの損失の折れ線" });
   const top = el("header", "golf-top golf-top-a", [
     el("div", "golf-title", [
-      el("div", "btn-wrap", [menuBtn, keycap("Esc")]),
+      el("div", "title-btns", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("div", "btn-wrap", [helpBtn, keycap("H")])]),
       el("div", "golf-name", [
         el("h1", "game-title", [term("GRADIENT GOLF", "勾配ゴルフ")]),
         el("p", "hole-line", [
@@ -184,9 +195,11 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     viewBtn.setAttribute("aria-pressed", String(view3d));
     viewBtn.disabled = locked;
     shootBtn.disabled = locked;
-    slider.disabled = anim !== null;
-    gdBtn.disabled = anim !== null;
-    momBtn.disabled = anim !== null;
+    const howtoOpen = overlay?.kind === "howto";
+    helpBtn.disabled = locked;
+    slider.disabled = anim !== null || howtoOpen;
+    gdBtn.disabled = anim !== null || howtoOpen;
+    momBtn.disabled = anim !== null || howtoOpen;
     noteText.textContent = note;
     noteText.classList.toggle("is-warn", noteWarn);
     renderPanel();
@@ -201,6 +214,12 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     panel.classList.toggle("is-open", overlay !== null);
     boardWrap.classList.toggle("has-result", overlay?.kind === "result");
     if (!overlay) return;
+    if (overlay.kind === "howto") {
+      panel.append(
+        ...buildHowto(GOLF_HOWTO, { index: overlay.index, count: GOLF_HOWTO.length }, { onNext: howtoNext, onBack: howtoBack, onClose: closeHowto }),
+      );
+      return;
+    }
     if (overlay.kind === "clear") {
       const d = overlay.strokes - overlay.par;
       const name = scoreName(overlay.strokes, overlay.par);
@@ -466,15 +485,43 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     syncDom();
   }
 
+  /** 遊び方の板を開く（玉が止まっていて、他の板が出ていない間だけ） */
+  function openHowto(): void {
+    if (busy()) return;
+    view3d = false;
+    overlay = { kind: "howto", index: 0 };
+    syncDom();
+  }
+
+  /** 遊び方の板を閉じる。閉じたら既読にする（開き直しでは状態を変えない） */
+  function closeHowto(): void {
+    if (overlay?.kind !== "howto") return;
+    overlay = null;
+    if (!howtoSeen) {
+      howtoSeen = true;
+      saveHowtoSeen(HOWTO_GAME);
+    }
+    syncDom();
+  }
+
+  function howtoStep(dir: 1 | -1): void {
+    if (overlay?.kind !== "howto") return;
+    const p = { index: overlay.index, count: GOLF_HOWTO.length };
+    overlay = { kind: "howto", index: (dir === 1 ? nextCard(p) : prevCard(p)).index };
+    syncDom();
+  }
+  const howtoNext = () => howtoStep(1);
+  const howtoBack = () => howtoStep(-1);
+
   function setLr(lr: number): void {
-    if (anim) return;
+    if (anim || overlay?.kind === "howto") return;
     progress = { ...progress, lr };
     persist();
     syncDom();
   }
 
   function setMethod(m: Method): void {
-    if (anim) return;
+    if (anim || overlay?.kind === "howto") return;
     progress = { ...progress, method: m };
     persist();
     syncDom();
@@ -509,7 +556,39 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     sound.unlock();
+    // 遊び方の板が出ている間は、板の操作だけ受け付ける（効果音の切り替えは効く）
+    if (overlay?.kind === "howto") {
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          closeHowto();
+          return;
+        case "Enter":
+          e.preventDefault();
+          if (isLast({ index: overlay.index, count: GOLF_HOWTO.length })) closeHowto();
+          else howtoNext();
+          return;
+        case "ArrowRight":
+          e.preventDefault();
+          howtoNext();
+          return;
+        case "ArrowLeft":
+          e.preventDefault();
+          howtoBack();
+          return;
+        case "ArrowUp":
+        case "ArrowDown":
+        case " ":
+        case "Spacebar":
+          e.preventDefault();
+          return;
+      }
+    }
     switch (e.key) {
+      case "h":
+      case "H":
+        if (!e.repeat) openHowto();
+        break;
       case "m":
       case "M":
         if (!e.repeat) toggleSound();
