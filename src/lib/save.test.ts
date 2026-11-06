@@ -135,6 +135,9 @@ describe("ページの切り替え", () => {
     expect(parseRoute("#/golf/")).toBe("golf");
     expect(parseRoute("#/nope")).toBe("menu");
     expect(routeHash("golf")).toBe("#/golf");
+    expect(parseRoute("#/golf/explain")).toBe("explain");
+    expect(parseRoute("#/golf/explain/")).toBe("explain");
+    expect(routeHash("explain")).toBe("#/golf/explain");
     expect(parseRoute("#/defense")).toBe("defense");
     expect(routeHash("defense")).toBe("#/defense");
     expect(parseRoute("#/rogue")).toBe("rogue");

@@ -210,13 +210,19 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     if (overlay.newBest) bestLine.append(el("span", "new-best", [term("NEW BEST", "記録更新")]));
     const retry = el("button", "btn btn-primary", [term("RETRY", "もう一度")], { type: "button" });
     retry.addEventListener("click", restart);
+    const explain = el("button", "btn", [term("EXPLAIN", "解説を見る")], { type: "button" });
+    explain.addEventListener("click", () => nav.go("explain"));
     const toMenu = el("button", "btn", [term("MENU", "メニューへ")], { type: "button" });
     toMenu.addEventListener("click", () => nav.go("menu"));
     panel.append(
       el("h2", "panel-title", [term("RESULT", "結果")]),
       el("div", "res-table", [head, ...rows, totalRow]),
       bestLine,
-      el("div", "panel-actions", [el("div", "btn-wrap", [retry, keycap("Enter")]), el("div", "btn-wrap", [toMenu, keycap("Esc")])]),
+      el("div", "panel-actions", [
+        el("div", "btn-wrap", [retry, keycap("Enter")]),
+        el("div", "btn-wrap", [explain, keycap("E")]),
+        el("div", "btn-wrap", [toMenu, keycap("Esc")]),
+      ]),
     );
     retry.focus({ preventScroll: true });
   }
@@ -416,6 +422,10 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       case "ArrowUp":
         e.preventDefault();
         nudgeLr(1);
+        break;
+      case "e":
+      case "E":
+        if (overlay?.kind === "result") nav.go("explain");
         break;
       case "1":
         setMethod("gd");
