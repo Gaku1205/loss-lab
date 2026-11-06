@@ -142,15 +142,49 @@ p {
 /* ---- メニュー ---- */
 .menu {
   min-height: 100dvh;
-  padding: 32px 24px;
-}
-
-.menu-inner {
-  max-width: 1120px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
+}
+
+.menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.menu-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  min-width: 0;
+}
+
+.bar-stats {
+  display: flex;
   gap: 32px;
+  flex: none;
+}
+
+.bar-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  opacity: 0.7;
+}
+
+.bar-stat.is-on {
+  opacity: 1;
+}
+
+.bar-stat.is-on .bar-val {
+  color: var(--cyan);
+}
+
+.bar-val {
+  font-size: 14px;
 }
 
 .site-title {
@@ -162,30 +196,97 @@ p {
 }
 
 .menu-lead {
-  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.7;
 }
 
+/* 表は画面の縦いっぱいに広げ、4行で高さを分ける */
 .xp-table {
-  border-top: 1px solid var(--rule);
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .xp-row {
   --accent: var(--rule);
+  flex: 1 1 0;
   display: grid;
-  grid-template-columns: 64px minmax(0, 2.2fr) minmax(0, 1.4fr) 120px 260px;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.6fr) 260px;
   align-items: center;
-  gap: 16px;
-  min-height: 64px;
-  padding: 0 16px;
+  gap: 24px;
+  min-height: 120px;
+  padding: 0 32px 0 24px;
   background: var(--board);
   border-bottom: 1px solid var(--rule);
-  border-left: 2px solid var(--accent);
+  border-left: 8px solid var(--accent);
+  color: var(--text);
 }
 
-.xp-headrow {
-  min-height: 40px;
-  background: var(--floor);
-  border-left-color: transparent;
+.xp-trace {
+  color: var(--accent);
+  height: 56px;
+  min-width: 0;
+}
+
+.xp-trace svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.xp-prog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xp-prog-text {
+  font-size: 14px;
+}
+
+.ticks {
+  display: flex;
+  gap: 2px;
+}
+
+.tick {
+  flex: 1 1 0;
+  max-width: 24px;
+  height: 6px;
+  background: var(--rule);
+}
+
+.tick.is-done {
+  background: var(--accent);
+}
+
+.xp-best {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.xp-best-val {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.is-soon .xp-best-val {
+  color: var(--text);
+}
+
+.menu-under {
+  padding: 24px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-play {
+  height: 48px;
+  padding: 0 24px;
 }
 
 .xp-row.is-ready {
@@ -200,10 +301,6 @@ p {
   opacity: 0.45;
 }
 
-.xp-no {
-  font-size: 14px;
-}
-
 .xp-name {
   display: flex;
   align-items: baseline;
@@ -214,7 +311,8 @@ p {
 .xp-en {
   font-family: var(--f-head);
   font-weight: 600;
-  font-size: 20px;
+  font-size: 28px;
+  line-height: 1.2;
 }
 
 .xp-ja {
@@ -229,10 +327,6 @@ p {
   padding: 2px 6px;
   border: 1px solid var(--cyan);
   color: var(--cyan);
-}
-
-.xp-best {
-  font-size: 16px;
 }
 
 .xp-state {
@@ -479,12 +573,67 @@ p {
   touch-action: manipulation;
 }
 
+/* 上の帯：メニューの最高記録と同じ大きさの数字（PC 40px ／ スマホ 28px）と、打つごとの小さな折れ線 */
+.golf-top-a {
+  padding: 16px 32px;
+  gap: 32px;
+}
+
+.golf-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hole-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+
+.hole-line .term-en {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.hole-name .term-en {
+  font-size: 12px;
+}
+
+.readouts-golf {
+  gap: 40px;
+}
+
+.big-a {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 500;
+}
+
+.spark {
+  position: relative;
+  flex: 1 1 160px;
+  min-width: 120px;
+  height: 64px;
+}
+
+.golf-note {
+  padding: 10px 32px;
+  border-top: 1px solid var(--rule);
+}
+
 .chart {
   position: relative;
   height: 96px;
   flex: 0 0 auto;
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
+}
+
+.golf .golf-controls {
+  border-top: 1px solid var(--rule);
 }
 
 .golf-controls {
@@ -960,35 +1109,38 @@ p {
     height: 44px;
   }
 
-  .menu {
-    padding: 24px 16px;
+  .menu-bar {
+    padding: 12px 16px;
+    gap: 12px;
   }
 
-  .menu-inner {
-    gap: 24px;
+  .menu-lead {
+    display: none;
+  }
+
+  .bar-stats {
+    gap: 12px;
   }
 
   .site-title {
-    font-size: 32px;
+    font-size: 24px;
+  }
+
+  .menu-under {
+    padding: 16px 16px 24px;
   }
 
   .xp-row {
-    grid-template-columns: 32px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "no name best"
-      "no state state";
-    gap: 4px 12px;
-    padding: 12px;
-  }
-
-  .xp-headrow {
-    grid-template-areas: "no name best";
-    padding: 8px 12px;
-  }
-
-  .xp-no {
-    grid-area: no;
-    align-self: start;
+      "name best"
+      "trace prog"
+      "state state";
+    align-items: center;
+    gap: 8px 12px;
+    min-height: 168px;
+    padding: 12px 16px 12px 12px;
+    border-left-width: 6px;
   }
 
   .xp-name {
@@ -997,11 +1149,21 @@ p {
 
   .xp-best {
     grid-area: best;
-    text-align: right;
+    align-items: flex-end;
   }
 
-  .xp-topic {
-    display: none;
+  .xp-best-val {
+    font-size: 28px;
+  }
+
+  .xp-trace {
+    grid-area: trace;
+    height: 40px;
+  }
+
+  .xp-prog {
+    grid-area: prog;
+    align-items: flex-end;
   }
 
   .xp-state {
@@ -1009,12 +1171,12 @@ p {
     justify-content: flex-start;
   }
 
-  .xp-headrow .xp-state {
-    display: none;
+  .btn-play {
+    height: 44px;
   }
 
   .xp-en {
-    font-size: 16px;
+    font-size: 20px;
   }
 
   .rank-grid {
@@ -1092,6 +1254,25 @@ p {
 
   .readout-sub .term-en {
     font-size: 11px;
+  }
+
+  .readouts-golf {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .big-a {
+    font-size: 28px;
+  }
+
+  .golf-top-a .spark {
+    flex: none;
+    width: auto;
+    height: 48px;
+  }
+
+  .golf-note {
+    padding: 8px 16px;
   }
 
   .board {

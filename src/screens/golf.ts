@@ -64,32 +64,42 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   // ---- 上の帯（数字） ----
   const menuBtn = el("button", "btn", [term("MENU", "メニュー")], { type: "button" });
   menuBtn.addEventListener("click", () => nav.go("menu"));
-  const numHole = el("span", "num big");
-  const numHoleName = el("span", "readout-sub");
-  const numStrokes = el("span", "num big");
-  const numPar = el("span", "num big");
-  const numLimit = el("span", "num big");
-  const numLoss = el("span", "num big");
-  const readout = (en: string, ja: string, value: HTMLElement, extra?: HTMLElement) =>
-    el("div", "readout", [term(en, ja, "label"), el("div", "readout-val", extra ? [value, extra] : [value])]);
-  const top = el("header", "golf-top", [
-    el("div", "golf-title", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("h1", "game-title", [term("GRADIENT GOLF", "勾配ゴルフ")])]),
-    el("div", "readouts", [
-      readout("HOLE", "ホール", numHole, numHoleName),
-      readout("STROKES", "打数", numStrokes),
-      readout("PAR", "パー", numPar),
-      readout("LIMIT", "上限", numLimit),
-      readout("LOSS", "損失", numLoss),
+  const numHole = el("span", "num");
+  const numHoleName = el("span", "hole-name");
+  const numStrokes = el("span", "num big-a");
+  const numPar = el("span", "num");
+  const numLimit = el("span", "num");
+  const numLoss = el("span", "num big-a");
+  const numCup = el("span", "num big-a");
+  const readout = (en: string, ja: string, value: HTMLElement) =>
+    el("div", "readout", [term(en, ja, "label"), el("div", "readout-val", [value])]);
+  const chartCanvas = el("canvas", "chart-canvas", [], { "aria-label": "打つごとの損失の折れ線" });
+  const top = el("header", "golf-top golf-top-a", [
+    el("div", "golf-title", [
+      el("div", "btn-wrap", [menuBtn, keycap("Esc")]),
+      el("div", "golf-name", [
+        el("h1", "game-title", [term("GRADIENT GOLF", "勾配ゴルフ")]),
+        el("p", "hole-line", [
+          term("HOLE", "ホール"),
+          numHole,
+          numHoleName,
+          term("PAR", "パー"),
+          numPar,
+          term("LIMIT", "上限"),
+          numLimit,
+        ]),
+      ]),
     ]),
+    el("div", "readouts readouts-golf", [readout("STROKES", "打数", numStrokes), readout("LOSS", "損失", numLoss), readout("TO CUP", "カップまで", numCup)]),
+    el("div", "spark", [chartCanvas]),
   ]);
 
   // ---- 盤と損失の折れ線 ----
   const boardCanvas = el("canvas", "board-canvas", [], { "aria-label": "コースの盤" });
   const panel = el("div", "panel", [], { role: "dialog" });
   const boardWrap = el("div", "board", [boardCanvas, panel]);
-  const chartCanvas = el("canvas", "chart-canvas", [], { "aria-label": "損失の折れ線" });
   const board = new Board(boardCanvas);
-  const chart = new LossChart(chartCanvas);
+  const chart = new LossChart(chartCanvas, true);
 
   // ---- 下の帯（操作） ----
   const slider = el("input", "lr-slider", [], {
@@ -106,6 +116,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   const viewBtn = el("button", "seg num", [], { type: "button", "aria-label": "視点" });
   const shootBtn = el("button", "btn btn-primary btn-shoot", [term("SHOOT", "打つ")], { type: "button" });
   const noteText = el("span", "note-text");
+  const labNote = el("div", "lab-note golf-note", [el("span", "label note-label", ["LAB NOTE"]), noteText]);
   const controls = el("footer", "golf-controls", [
     el("div", "ctrl-row", [
       el("div", "ctrl ctrl-lr", [
@@ -128,10 +139,9 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       ]),
       el("div", "ctrl ctrl-shoot", [el("div", "btn-wrap", [shootBtn, keycap("Space")])]),
     ]),
-    el("div", "lab-note", [el("span", "label note-label", ["LAB NOTE"]), noteText]),
   ]);
 
-  const root = el("main", "screen golf", [top, boardWrap, el("div", "chart", [chartCanvas]), controls]);
+  const root = el("main", "screen golf", [top, boardWrap, labNote, controls]);
 
   // ---- 状態から画面へ ----
   function viewHole(): Hole {
@@ -152,6 +162,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     const h = viewHole();
     numHole.textContent = `${h.no}/${HOLES.length}`;
     numHoleName.replaceChildren(term(h.name, h.nameJa));
+    numCup.textContent = Math.hypot(ball.x - h.cup.x, ball.y - h.cup.y).toFixed(2);
     numStrokes.textContent = String(strokes);
     numPar.textContent = String(h.par);
     numLimit.textContent = String(h.limit);

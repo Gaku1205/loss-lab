@@ -29,6 +29,17 @@ const GAMES: readonly GameRow[] = [
   { no: "04", en: "Reward Lab", ja: "報酬設計室", topic: "報酬設計", accent: "--leaf", route: "reward", key: "4" },
 ];
 
+/** 行の小さな盤の図。前の記録の線は保存していないので、どの行もそのゲームの盤の図を出す（固定の図形だけ） */
+const TRACES: Record<string, string> = {
+  golf: '<svg viewBox="0 0 160 56"><g fill="none" stroke="#24314A"><ellipse cx="110" cy="28" rx="48" ry="24"/><ellipse cx="110" cy="28" rx="32" ry="16"/><ellipse cx="110" cy="28" rx="16" ry="8"/></g><path d="M16 12 C 50 14, 80 30, 108 28" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="110" cy="28" r="4" fill="none" stroke="#DCE3F0" stroke-width="1.5"/></svg>',
+  defense:
+    '<svg viewBox="0 0 160 56"><path d="M4 36 C 40 8, 70 8, 100 28 S 140 48, 156 20" fill="none" stroke="currentColor" stroke-width="1.5"/><g fill="none" stroke="#DCE3F0" stroke-width="1.5"><circle cx="30" cy="18" r="3"/><circle cx="76" cy="44" r="3"/><circle cx="128" cy="38" r="3"/></g><g fill="#DCE3F0"><circle cx="30" cy="46" r="3"/><circle cx="84" cy="14" r="3"/><circle cx="130" cy="12" r="3"/></g></svg>',
+  rogue:
+    '<svg viewBox="0 0 160 56"><line x1="4" y1="14" x2="156" y2="14" stroke="#24314A"/><polyline points="4,50 44,46 84,38 124,34 156,30" fill="none" stroke="#DCE3F0"/><polyline points="4,48 44,40 84,26 124,16 156,10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  reward:
+    '<svg viewBox="0 0 160 56"><g fill="none" stroke="#24314A"><rect x="20" y="6" width="120" height="44"/><line x1="50" y1="6" x2="50" y2="50"/><line x1="80" y1="6" x2="80" y2="50"/><line x1="110" y1="6" x2="110" y2="50"/><line x1="20" y1="28" x2="140" y2="28"/></g><polyline points="35,17 65,17 65,39 95,39 95,17 125,17" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="32" y="14" width="6" height="6" fill="none" stroke="#DCE3F0"/></svg>',
+};
+
 export function createMenu(nav: { go(r: Route): void }): Screen {
   const save = readSave();
   const prog = save.golf.progress;
@@ -45,17 +56,26 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
     reward: rewardBestText(save.reward),
   };
 
-  const head = el("header", "menu-head", [
-    el("h1", "site-title", ["Loss Lab"]),
-    el("p", "menu-lead", ["損失を下げる4つの実験。勾配降下・過学習・モデル設計・報酬設計を、遊びながら確かめる。"]),
-  ]);
+  const progress: Record<string, { n: number; done: number; total: number; word: string }> = {
+    golf: { word: "HOLE", total: 10, done: prog ? Math.min(prog.hole, 10) : 0, n: prog ? Math.min(prog.hole + 1, 10) : 0 },
+    defense: { word: "WAVE", total: 4, done: dprog ? Math.min(dprog.wave, 4) : 0, n: dprog ? Math.min(dprog.wave + 1, 4) : 0 },
+    rogue: { word: "FLOOR", total: 4, done: save.rogue.floor ?? 0, n: save.rogue.floor ?? 0 },
+    reward: {
+      word: "TASK",
+      total: 3,
+      done: save.reward.progress ? Math.min(save.reward.progress.task, 3) : 0,
+      n: save.reward.progress ? Math.min(save.reward.progress.task + 1, 3) : 0,
+    },
+  };
 
-  const headRow = el("div", "xp-row xp-headrow", [
-    el("span", "xp-no label", ["No."]),
-    term("EXPERIMENT", "実験", "xp-name label"),
-    term("TOPIC", "テーマ", "xp-topic label"),
-    term("BEST", "最高記録", "xp-best label"),
-    el("span", "xp-state"),
+  const stat = (en: string, value: string, on = false) =>
+    el("span", `bar-stat${on ? " is-on" : ""}`, [el("span", "label", [en]), el("span", "num bar-val", [value])]);
+  const head = el("header", "menu-bar", [
+    el("div", "menu-brand", [
+      el("h1", "site-title", ["Loss Lab"]),
+      el("p", "menu-lead", ["損失を下げる4つの実験。勾配降下・過学習・モデル設計・報酬設計を、遊びながら確かめる。"]),
+    ]),
+    el("div", "bar-stats", [stat("MENU", "●", true), stat("CLASS", "—"), stat("SOUND", "OFF")]),
   ]);
 
   const rows = GAMES.map((g) => {
@@ -65,19 +85,37 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
     if (route) {
       if (route === "golf" && hasNoRecord(save)) name.append(el("span", "start-here", ["最初はここから"]));
       const accentCls = route === "defense" ? " btn-def" : route === "rogue" ? " btn-rogue" : route === "reward" ? " btn-reward" : "";
-      const btn = el("button", `btn btn-primary${accentCls}`, [midway[route] ? term("CONTINUE", "続きから") : term("OPEN", "開く")], { type: "button" });
+      const btn = el("button", `btn btn-primary btn-play${accentCls}`, [midway[route] ? term("CONTINUE", "続きから") : term("OPEN", "開く")], {
+        type: "button",
+      });
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         nav.go(route);
       });
       state = el("div", "xp-state", [btn, keycap(g.key)]);
     } else {
-      state = el("div", "xp-state", [el("span", "soon", ["準備中"])]);
+      state = el("div", "xp-state");
     }
+    let progEl: HTMLElement;
+    if (route) {
+      const pr = progress[route];
+      const ticks = Array.from({ length: pr.total }, (_, i) => el("i", i < pr.done ? "tick is-done" : "tick"));
+      progEl = el("div", "xp-prog", [el("span", "num xp-prog-text", [`${pr.word} ${pr.n} / ${pr.total}`]), el("div", "ticks", ticks)]);
+    } else {
+      progEl = el("div", "xp-prog", [el("span", "num xp-prog-text", ["—"])]);
+    }
+    const trace = el("div", "xp-trace", [], { "aria-hidden": "true" });
+    trace.innerHTML = TRACES[g.route ?? "golf"];
     const row = el(
       "div",
       `xp-row${route ? " is-ready" : " is-soon"}`,
-      [el("span", "xp-no num", [g.no]), name, el("span", "xp-topic", [g.topic]), el("span", "xp-best num", [route ? bestText[route] : "—"]), state],
+      [
+        name,
+        trace,
+        progEl,
+        el("div", "xp-best", [term("BEST", "最高記録", "label"), el("span", "num xp-best-val", [route ? bestText[route] : "—"])]),
+        state,
+      ],
       route ? {} : { "aria-disabled": "true" },
     );
     row.style.setProperty("--accent", `var(${g.accent})`);
@@ -85,7 +123,7 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
     return row;
   });
 
-  const table = el("section", "xp-table", [headRow, ...rows], { "aria-label": "実験" });
+  const table = el("section", "xp-table", rows, { "aria-label": "実験" });
 
   let destroyed = false;
   const boards = GAMES.map((g) => {
@@ -98,7 +136,7 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
   const ranks = el("section", "ranks", [el("h2", "section-title", [term("TOP 3", "上位3人")]), el("div", "rank-grid", boards)]);
 
   const foot = el("p", "menu-foot", ["記録はこのブラウザに保存します。ログインはありません。"]);
-  const root = el("main", "screen menu", [el("div", "menu-inner", [head, table, ranks, foot])]);
+  const root = el("main", "screen menu", [head, table, el("div", "menu-under", [ranks, foot])]);
 
   const onKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
