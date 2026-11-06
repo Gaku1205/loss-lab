@@ -5,10 +5,12 @@ import type { Method } from "../lib/golf/optimizer";
 import { betterBest, formatDiff, scoreName, totalStrokes } from "../lib/golf/score";
 import { lrToSlider, simulateShot, sliderToLr, STEPS_PER_SHOT, type ShotResult } from "../lib/golf/shot";
 import type { Vec } from "../lib/golf/vec";
+import { envConfig, submitScore, validateCode, validateNickname } from "../lib/board";
 import type { Route } from "../lib/route";
 import type { SaveData } from "../lib/save";
 import { readSave, readSoundOn, saveData, saveSoundOn } from "../store";
 import { el, keycap, prefersReducedMotion, term, type Screen } from "../ui";
+import { OFFLINE_TEXT, textField } from "./board-ui";
 import { Board, type Trail } from "./golf-board";
 import { LossChart, type LossPoint } from "./golf-chart";
 import { GolfSound } from "./golf-sound";
@@ -231,6 +233,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       el("span", "num", [save.golf.best === null ? "—" : `${save.golf.best} 打`]),
     ]);
     if (overlay.newBest) bestLine.append(el("span", "new-best", [term("NEW BEST", "記録更新")]));
+    const submit = buildSubmit(total);
     const retry = el("button", "btn btn-primary", [term("RETRY", "もう一度")], { type: "button" });
     retry.addEventListener("click", restart);
     const explain = el("button", "btn", [term("EXPLAIN", "解説を見る")], { type: "button" });
@@ -241,6 +244,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       el("h2", "panel-title", [term("RESULT", "結果")]),
       el("div", "res-table", [head, ...rows, totalRow]),
       bestLine,
+      submit,
       el("div", "panel-actions", [
         el("div", "btn-wrap", [retry, keycap("Enter")]),
         el("div", "btn-wrap", [explain, keycap("E")]),
@@ -248,6 +252,49 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       ]),
     );
     retry.focus({ preventScroll: true });
+  }
+
+  /** 結果の板の、順位表に記録を送る欄 */
+  function buildSubmit(total: number): HTMLElement {
+    const cfg = envConfig();
+    if (!cfg) return el("p", "board-note", [OFFLINE_TEXT]);
+    const code = textField("PASSPHRASE", "合言葉", save.board.code ?? "");
+    const nick = textField("NICKNAME", "ニックネーム", save.board.nickname ?? "");
+    const btn = el("button", "btn btn-primary", [term("SUBMIT", "記録を送る")], { type: "button" });
+    const status = el("span", "board-status");
+    let busySending = false;
+    let sent = false;
+    const sync = () => {
+      btn.disabled = busySending || sent || validateCode(code.input.value) === null || validateNickname(nick.input.value) === null;
+    };
+    const setStatus = (text: string, cls = "") => {
+      status.textContent = text;
+      status.className = `board-status ${cls}`.trim();
+    };
+    code.input.addEventListener("input", sync);
+    nick.input.addEventListener("input", sync);
+    btn.addEventListener("click", () => {
+      const c = validateCode(code.input.value);
+      const n = validateNickname(nick.input.value);
+      if (c === null || n === null || busySending || sent) return;
+      busySending = true;
+      setStatus("送信中…");
+      sync();
+      void submitScore(cfg, { code: c, nickname: n, score: total }).then((ok) => {
+        busySending = false;
+        sent = ok;
+        if (ok) {
+          save.board = { code: c, nickname: n };
+          saveData(save);
+          setStatus("送った", "is-good");
+        } else {
+          setStatus("送れなかった。もう一度押す", "is-warn");
+        }
+        sync();
+      });
+    });
+    sync();
+    return el("div", "board-submit", [code.wrap, nick.wrap, el("div", "board-send", [btn, status])]);
   }
 
   function draw(now: number): void {

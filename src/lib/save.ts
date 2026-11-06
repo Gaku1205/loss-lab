@@ -1,3 +1,4 @@
+import { validateCode, validateNickname } from "./board";
 import { FIRST_HOLES, HOLES } from "./golf/holes";
 import type { GolfProgress } from "./golf/game";
 import { LR_MAX, LR_MIN } from "./golf/shot";
@@ -37,6 +38,8 @@ export interface SaveData {
     /** 3問の合計得点の最高記録（高いほど良い） */
     best: number | null;
   };
+  /** 順位表で最後に使った合言葉とニックネーム（次回の入力を省く）。無ければ null */
+  board: { code: string | null; nickname: string | null };
 }
 
 export function emptySave(): SaveData {
@@ -45,6 +48,7 @@ export function emptySave(): SaveData {
     defense: { progress: null, best: null },
     rogue: { floor: null, loops: 0 },
     reward: { progress: null, best: null },
+    board: { code: null, nickname: null },
   };
 }
 
@@ -119,6 +123,11 @@ export function parseSave(raw: string | null): SaveData {
     const { progress, best } = data.reward;
     out.reward.progress = parseReward(progress);
     out.reward.best = isInt(best, 0, TASK_MAX * TASKS.length) ? best : null;
+  }
+  if (isRec(data.board)) {
+    const { code, nickname } = data.board;
+    out.board.code = typeof code === "string" ? validateCode(code) : null;
+    out.board.nickname = typeof nickname === "string" ? validateNickname(nickname) : null;
   }
   return out;
 }
