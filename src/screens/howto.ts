@@ -68,6 +68,26 @@ export const GOLF_HOWTO: readonly HowtoCard[] = [
   },
 ];
 
+/** モデル・ローグの遊び方（4枚。文言は docs/design.md） */
+export const ROGUE_HOWTO: readonly HowtoCard[] = [
+  { en: "GOAL", ja: "ゴール", body: "カードを足してモデルを育て、検証精度をボスの目標まで上げる。4階のボスを倒すと全階突破。" },
+  {
+    en: "CARDS",
+    ja: "カード",
+    body: "手札から1枚出すと、モデルの最後に足して学習する。LAYER は表現力を足し、REG は過学習を抑え、FIX は勾配の流れを整える。",
+  },
+  {
+    en: "DEFEAT",
+    ja: "負け",
+    body: "層を重ねすぎて勾配が消える、表現力が余って過学習する、出せる5枚を使い切る。どれかで負けて、1階からやり直し。",
+  },
+  {
+    en: "CONTROLS",
+    ja: "操作",
+    body: "数字キー 1〜4 か、カードを押して出す。学習精度と検証精度の差、勾配の流れ GRAD を見ながら選ぶ。",
+  },
+];
+
 /** 境界防衛線の遊び方（4枚。文言は docs/design.md） */
 export const DEFENSE_HOWTO: readonly HowtoCard[] = [
   { en: "GOAL", ja: "ゴール", body: "流れてくる ○ と ● を、陣地で正しく仕分けて守る。誤りやすり抜けでライフが減り、0 になるとその波は失敗。" },

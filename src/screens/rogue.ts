@@ -20,10 +20,12 @@ import {
   type RogueRun,
 } from "../lib/rogue/game";
 import { floorIntroNote, GAP_WARN, playNote } from "../lib/rogue/note";
+import { isLast, nextCard, prevCard } from "../lib/howto";
 import type { Route } from "../lib/route";
 import type { SaveData } from "../lib/save";
-import { readSave, saveData } from "../store";
+import { readHowtoSeen, readSave, saveData, saveHowtoSeen } from "../store";
 import { el, keycap, prefersReducedMotion, term, type Screen } from "../ui";
+import { buildHowto, ROGUE_HOWTO } from "./howto";
 import { BOSS_H, BOSS_W, drawBoss } from "./rogue-boss";
 import { RogueChart } from "./rogue-chart";
 
@@ -46,7 +48,10 @@ type Overlay =
   | { kind: "clear"; floor: number; val: number; target: number }
   | { kind: "lose"; why: "overfit" | "vanish" | "budget"; floor: number; train: number; val: number; grad: number }
   | { kind: "allclear"; loop: number; cards: CardId[] }
+  | { kind: "howto"; index: number }
   | null;
+
+const HOWTO_GAME = "rogue";
 
 interface Anim {
   from: number;
@@ -72,7 +77,9 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
   let shownFit: Fit = currentFit(run);
   let anim: Anim | null = null;
   let lostLast = false;
-  let overlay: Overlay = null;
+  let howtoSeen = readHowtoSeen(HOWTO_GAME);
+  // 初めて開いた時だけ遊び方の板を自動で出す
+  let overlay: Overlay = howtoSeen ? null : { kind: "howto", index: 0 };
   let note = floorIntroNote(0);
   let noteWarn = false;
   let alarmUntil = 0;
@@ -85,6 +92,8 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
   // ---- 上の帯 ----
   const menuBtn = el("button", "btn", [term("MENU", "メニュー")], { type: "button" });
   menuBtn.addEventListener("click", () => nav.go("menu"));
+  const helpBtn = el("button", "btn btn-help num", ["?"], { type: "button", "aria-label": "遊び方" });
+  helpBtn.addEventListener("click", () => openHowto());
   const numFloor = el("span", "num big");
   const numLoop = el("span", "num big");
   const numBudget = el("span", "num big");
@@ -93,7 +102,10 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
   const readout = (en: string, ja: string, value: HTMLElement) =>
     el("div", "readout", [term(en, ja, "label"), el("div", "readout-val", [value])]);
   const top = el("header", "golf-top", [
-    el("div", "golf-title", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("h1", "game-title", [term("MODEL ROGUE", "モデル・ローグ")])]),
+    el("div", "golf-title", [
+      el("div", "title-btns", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("div", "btn-wrap", [helpBtn, keycap("H")])]),
+      el("h1", "game-title", [term("MODEL ROGUE", "モデル・ローグ")]),
+    ]),
     el("div", "readouts readouts-rogue", [
       readout("FLOOR", "階", numFloor),
       readout("LOOP", "周回", numLoop),
@@ -224,6 +236,7 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
       c.btn.disabled = busy;
       c.btn.setAttribute("aria-label", `${i + 1}：${spec.en} ${spec.ja}`);
     });
+    helpBtn.disabled = !canOpenHowto();
     noteText.textContent = note;
     noteText.classList.toggle("is-warn", noteWarn);
     renderPanel();
@@ -238,6 +251,12 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
     panel.classList.toggle("is-open", overlay !== null);
     mid.classList.toggle("has-panel", overlay !== null);
     if (!overlay) return;
+    if (overlay.kind === "howto") {
+      panel.append(
+        ...buildHowto(ROGUE_HOWTO, { index: overlay.index, count: ROGUE_HOWTO.length }, { onNext: howtoNext, onBack: howtoBack, onClose: closeHowto }),
+      );
+      return;
+    }
     const toMenu = () => {
       const b = el("button", "btn", [term("MENU", "メニューへ")], { type: "button" });
       b.addEventListener("click", () => nav.go("menu"));
@@ -367,8 +386,39 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
     syncDom();
   }
 
+  /** 遊び方の板を開けるのは、学習曲線が伸びていなくて他の板が出ていない間だけ */
+  function canOpenHowto(): boolean {
+    return anim === null && overlay === null;
+  }
+
+  function openHowto(): void {
+    if (!canOpenHowto()) return;
+    overlay = { kind: "howto", index: 0 };
+    syncDom();
+  }
+
+  /** 閉じたら既読にする（開き直しでは状態を変えない） */
+  function closeHowto(): void {
+    if (overlay?.kind !== "howto") return;
+    overlay = null;
+    if (!howtoSeen) {
+      howtoSeen = true;
+      saveHowtoSeen(HOWTO_GAME);
+    }
+    syncDom();
+  }
+
+  function howtoStep(dir: 1 | -1): void {
+    if (overlay?.kind !== "howto") return;
+    const p = { index: overlay.index, count: ROGUE_HOWTO.length };
+    overlay = { kind: "howto", index: (dir === 1 ? nextCard(p) : prevCard(p)).index };
+    syncDom();
+  }
+  const howtoNext = () => howtoStep(1);
+  const howtoBack = () => howtoStep(-1);
+
   function proceed(): void {
-    if (!overlay) return;
+    if (!overlay || overlay.kind === "howto") return;
     if (overlay.kind === "clear") startFloor(nextFloor(run));
     else if (overlay.kind === "lose") startFloor(restartRun(run, newSeed()));
     else startFloor(nextLoop(run, newSeed()));
@@ -376,7 +426,40 @@ export function createRogue(nav: { go(r: Route): void }): Screen {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // 遊び方の板が出ている間は、板の操作だけ受け付ける
+    if (overlay?.kind === "howto") {
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          closeHowto();
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (isLast({ index: overlay.index, count: ROGUE_HOWTO.length })) closeHowto();
+          else howtoNext();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          howtoNext();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          howtoBack();
+          break;
+        case " ":
+        case "Spacebar":
+        case "ArrowUp":
+        case "ArrowDown":
+          e.preventDefault();
+          break;
+      }
+      return;
+    }
     switch (e.key) {
+      case "h":
+      case "H":
+        if (!e.repeat) openHowto();
+        break;
       case "Escape":
         e.preventDefault();
         nav.go("menu");
