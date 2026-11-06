@@ -458,6 +458,10 @@ p {
   min-width: 64px;
 }
 
+.ctrl-view .seg:disabled {
+  opacity: 0.45;
+}
+
 .seg.is-on {
   border-color: var(--cyan);
   color: var(--cyan);
