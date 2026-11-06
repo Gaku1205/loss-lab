@@ -30,13 +30,13 @@ describe("保存データの読み書き", () => {
     expect(s.golf.best).toBe(12);
   });
   it("学習率や手法が範囲の外なら捨てる", () => {
-    expect(parseSave(serializeSave({ golf: { best: null, progress: { ...newRun(), lr: 5 } } })).golf.progress).toBeNull();
+    expect(parseSave(serializeSave({ ...emptySave(), golf: { best: null, progress: { ...newRun(), lr: 5 } } })).golf.progress).toBeNull();
     const bad = JSON.stringify({ golf: { best: null, progress: { ...newRun(), method: "adam" } } });
     expect(parseSave(bad).golf.progress).toBeNull();
   });
   it("3ホールを終えた状態も読める", () => {
     const done = { ...newRun(), hole: 3, cards: [3, 4, 3], strokes: 0 };
-    expect(parseSave(serializeSave({ golf: { best: 10, progress: done } })).golf.progress).toEqual(done);
+    expect(parseSave(serializeSave({ ...emptySave(), golf: { best: 10, progress: done } })).golf.progress).toEqual(done);
   });
   it("localStorage が使えなくても止まらない", () => {
     const broken: KeyValueStore = {
@@ -53,7 +53,34 @@ describe("保存データの読み書き", () => {
   });
   it("記録ゼロの判定", () => {
     expect(hasNoRecord(emptySave())).toBe(true);
-    expect(hasNoRecord({ golf: { best: 10, progress: null } })).toBe(false);
+    expect(hasNoRecord({ ...emptySave(), golf: { best: 10, progress: null } })).toBe(false);
+  });
+  it("境界防衛線の進み具合と最高記録を読み書きできる", () => {
+    const save = emptySave();
+    save.defense.progress = { wave: 2, neurons: [{ x: 0.1, y: -0.2, kind: "wide", cls: "a" }] };
+    save.defense.best = 92;
+    expect(parseSave(serializeSave(save))).toEqual(save);
+  });
+  it("前の版（golf だけ）の保存も読める", () => {
+    const raw = JSON.stringify({ golf: { best: 12, progress: null } });
+    const s = parseSave(raw);
+    expect(s.golf.best).toBe(12);
+    expect(s.defense).toEqual(emptySave().defense);
+  });
+  it("おかしなニューロン・波の番号は捨て、最高記録は残す", () => {
+    const tooMany = Array.from({ length: 7 }, () => ({ x: 0, y: 0, kind: "wide", cls: "a" }));
+    for (const progress of [
+      { wave: 9, neurons: [] },
+      { wave: 0, neurons: [{ x: 5, y: 0, kind: "wide", cls: "a" }] },
+      { wave: 0, neurons: [{ x: 0, y: 0, kind: "huge", cls: "a" }] },
+      { wave: 0, neurons: [{ x: 0, y: 0, kind: "wide", cls: "c" }] },
+      { wave: 0, neurons: tooMany },
+    ]) {
+      const s = parseSave(JSON.stringify({ defense: { best: 80, progress } }));
+      expect(s.defense.progress).toBeNull();
+      expect(s.defense.best).toBe(80);
+    }
+    expect(parseSave(JSON.stringify({ defense: { best: 101, progress: null } })).defense.best).toBeNull();
   });
 });
 
@@ -65,5 +92,8 @@ describe("ページの切り替え", () => {
     expect(parseRoute("#/golf/")).toBe("golf");
     expect(parseRoute("#/nope")).toBe("menu");
     expect(routeHash("golf")).toBe("#/golf");
+    expect(parseRoute("#/defense")).toBe("defense");
+    expect(routeHash("defense")).toBe("#/defense");
+    expect(routeHash("menu")).toBe("#/");
   });
 });
