@@ -1,7 +1,7 @@
 import { isDefenseFinished } from "../lib/defense/game";
 import { isFinished } from "../lib/golf/game";
 import type { Route } from "../lib/route";
-import { hasNoRecord } from "../lib/save";
+import { golfBestText, hasNoRecord } from "../lib/save";
 import { readSave } from "../store";
 import { el, keycap, term, type Screen } from "../ui";
 import { bestText as rewardBestText, isRewardMidway } from "./reward";
@@ -37,7 +37,7 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
     reward: isRewardMidway(save.reward.progress),
   };
   const bestText: Record<string, string> = {
-    golf: save.golf.best !== null ? `${save.golf.best} 打` : "—",
+    golf: golfBestText(save),
     defense: save.defense.best !== null ? `${save.defense.best}%` : "—",
     rogue: rogueBestText(save.rogue),
     reward: rewardBestText(save.reward),

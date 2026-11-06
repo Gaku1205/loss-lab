@@ -1,4 +1,4 @@
-import { HOLES } from "./golf/holes";
+import { FIRST_HOLES, HOLES } from "./golf/holes";
 import type { GolfProgress } from "./golf/game";
 import { LR_MAX, LR_MIN } from "./golf/shot";
 import type { DefenseProgress } from "./defense/game";
@@ -18,8 +18,10 @@ export interface SaveData {
   golf: {
     /** 途中の挑戦。無ければ null（次に開いた時に新しく始める） */
     progress: GolfProgress | null;
-    /** 3ホールの合計打数の最高記録（少ないほど良い） */
+    /** 10ホールの合計打数の最高記録（少ないほど良い） */
     best: number | null;
+    /** 前の版（#1、3ホールで1回の挑戦）の合計打数の最高記録。読むだけで、更新しない */
+    firstBest: number | null;
   };
   defense: {
     /** 途中の挑戦。無ければ null */
@@ -39,7 +41,7 @@ export interface SaveData {
 
 export function emptySave(): SaveData {
   return {
-    golf: { progress: null, best: null },
+    golf: { progress: null, best: null, firstBest: null },
     defense: { progress: null, best: null },
     rogue: { floor: null, loops: 0 },
     reward: { progress: null, best: null },
@@ -60,18 +62,24 @@ function isInt(v: unknown, min: number, max: number): v is number {
   return isNum(v) && Number.isInteger(v) && v >= min && v <= max;
 }
 
-function parseProgress(v: unknown): GolfProgress | null {
+/**
+ * 勾配ゴルフの途中の挑戦を読む。holeCount は、その保存が作られた版のホール数（今は 10、前の版は 3）。
+ * 前の版で3ホールを終えた状態は、4ホール目のスタートから続ける
+ */
+function parseProgress(v: unknown, holeCount: number): GolfProgress | null {
   if (!isRec(v)) return null;
   const { hole, pos, strokes, cards, lr, method } = v;
-  if (!isInt(hole, 0, HOLES.length)) return null;
+  if (!isInt(hole, 0, holeCount)) return null;
   if (!isRec(pos) || !isNum(pos.x) || !isNum(pos.y)) return null;
-  const h = HOLES[hole];
+  const h = hole < holeCount ? HOLES[hole] : undefined;
   if (!isInt(strokes, 0, h ? h.limit - 1 : 0)) return null;
   if (!Array.isArray(cards) || cards.length !== hole) return null;
   if (!cards.every((c, i) => isInt(c, 1, HOLES[i].limit))) return null;
   if (!isNum(lr) || lr < LR_MIN || lr > LR_MAX) return null;
   if (method !== "gd" && method !== "momentum") return null;
-  return { hole, pos: { x: pos.x, y: pos.y }, strokes, cards: [...cards], lr, method };
+  const next = holeCount < HOLES.length && hole === holeCount ? HOLES[hole] : undefined;
+  const at = next ? { ...next.start } : { x: pos.x, y: pos.y };
+  return { hole, pos: at, strokes, cards: [...cards], lr, method };
 }
 
 /** 保存された文字列を読む。壊れていたら、読めた所だけ使い、残りは最初の状態にする */
@@ -86,9 +94,16 @@ export function parseSave(raw: string | null): SaveData {
   }
   if (!isRec(data)) return out;
   if (isRec(data.golf)) {
-    const { progress, best } = data.golf;
-    out.golf.progress = parseProgress(progress);
-    out.golf.best = isInt(best, HOLES.length, 1000) ? best : null;
+    const { progress, best, firstBest, holes } = data.golf;
+    if (holes === HOLES.length) {
+      out.golf.progress = parseProgress(progress, HOLES.length);
+      out.golf.best = isInt(best, HOLES.length, 1000) ? best : null;
+      out.golf.firstBest = isInt(firstBest, FIRST_HOLES, 1000) ? firstBest : null;
+    } else {
+      // 前の版（3ホール）：最高記録は3ホールの記録として残し、途中の挑戦は続きから遊べるようにする
+      out.golf.progress = parseProgress(progress, FIRST_HOLES);
+      out.golf.firstBest = isInt(best, FIRST_HOLES, 1000) ? best : null;
+    }
   }
   if (isRec(data.defense)) {
     const { progress, best } = data.defense;
@@ -159,8 +174,9 @@ function parseDefense(v: unknown): DefenseProgress | null {
   return { wave, neurons: list };
 }
 
+/** 書く形。勾配ゴルフには、何ホールの版で書いたか（holes）を付ける。前の版の保存と見分けるため */
 export function serializeSave(data: SaveData): string {
-  return JSON.stringify(data);
+  return JSON.stringify({ ...data, golf: { ...data.golf, holes: HOLES.length } });
 }
 
 /** 読み書きに使う所（テストでは偽物を渡す） */
@@ -192,5 +208,12 @@ export function writeSave(store: KeyValueStore | null, data: SaveData): boolean 
 
 /** 記録が1つも無いか（メニューの「最初はここから」の印を出すか） */
 export function hasNoRecord(data: SaveData): boolean {
-  return data.golf.best === null;
+  return data.golf.best === null && data.golf.firstBest === null;
+}
+
+/** メニューに出す勾配ゴルフの最高記録。10ホールの記録が無く、前の版の3ホールの記録だけある時はそれを出す */
+export function golfBestText(data: SaveData): string {
+  if (data.golf.best !== null) return `${data.golf.best} 打`;
+  if (data.golf.firstBest !== null) return `${data.golf.firstBest} 打（3ホール）`;
+  return "—";
 }

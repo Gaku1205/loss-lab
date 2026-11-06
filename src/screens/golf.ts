@@ -163,6 +163,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     panelKey = key;
     panel.replaceChildren();
     panel.classList.toggle("is-open", overlay !== null);
+    boardWrap.classList.toggle("has-result", overlay?.kind === "result");
     if (!overlay) return;
     if (overlay.kind === "clear") {
       const d = overlay.strokes - overlay.par;
@@ -262,7 +263,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     if (busy()) return;
     const hole = currentHole(progress);
     if (!hole) return;
-    const shot = simulateShot(hole, progress.pos, progress.lr, progress.method);
+    const shot = simulateShot(hole, progress.pos, progress.lr, progress.method, progress.strokes);
     const after = applyShot(progress, shot);
     const before = shot.losses[0];
     const endLoss = shot.losses[shot.losses.length - 1];

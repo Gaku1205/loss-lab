@@ -1,6 +1,7 @@
 import { contourLevels, contourSegments } from "../lib/golf/contour";
 import type { Hole } from "../lib/golf/holes";
 import type { Vec } from "../lib/golf/vec";
+import { formatWind, WIND_MAX, windDir, type Wind } from "../lib/golf/wind";
 import { COLORS } from "../ui";
 
 /** 盤に描く軌跡 */
@@ -148,6 +149,57 @@ export class Board {
     g.textBaseline = "middle";
     g.fillText("START", st.x + 10, st.y - 10);
     g.fillText("CUP", cup.x + Math.max(6, hole.cupRadius * f.s) + 6, cup.y - 10);
+
+    if (hole.wind) this.drawWind(g, hole.wind);
+  }
+
+  /** 盤の右上の内側に、風の向き（矢印）と強さ（数字） */
+  private drawWind(g: CanvasRenderingContext2D, wind: Wind): void {
+    const pad = this.w < 600 ? 16 : 24;
+    const box = 40;
+    const right = this.w - pad;
+    const bx = right - box;
+    const by = pad + 16;
+    // ラベル `WIND 風`（右寄せ）
+    g.textBaseline = "middle";
+    g.textAlign = "right";
+    g.fillStyle = COLORS.text;
+    g.font = '400 10px "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif';
+    g.globalAlpha = 0.7;
+    g.fillText("風", right, pad + 5);
+    const jaW = g.measureText("風").width;
+    g.globalAlpha = 1;
+    g.font = '600 11px "Chakra Petch", system-ui, sans-serif';
+    g.fillText("WIND", right - jaW - 4, pad + 5);
+    // 矢印の枠
+    g.strokeStyle = COLORS.rule;
+    g.lineWidth = 1;
+    g.strokeRect(bx + 0.5, by + 0.5, box - 1, box - 1);
+    // 矢印（長さは強さに比例）
+    const u = windDir(wind);
+    const half = 6 + 10 * (wind.strength / WIND_MAX);
+    const cx = bx + box / 2;
+    const cy = by + box / 2;
+    const tip = { x: cx + u.x * half, y: cy - u.y * half };
+    const tail = { x: cx - u.x * half, y: cy + u.y * half };
+    const ang = Math.atan2(tip.y - tail.y, tip.x - tail.x);
+    g.strokeStyle = COLORS.text;
+    g.lineWidth = 1.5;
+    g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(tail.x, tail.y);
+    g.lineTo(tip.x, tip.y);
+    for (const d of [Math.PI * 0.8, -Math.PI * 0.8]) {
+      g.moveTo(tip.x, tip.y);
+      g.lineTo(tip.x + Math.cos(ang + d) * 6, tip.y + Math.sin(ang + d) * 6);
+    }
+    g.stroke();
+    g.lineCap = "butt";
+    // 強さ
+    g.font = '400 12px "JetBrains Mono", ui-monospace, monospace';
+    g.fillStyle = COLORS.text;
+    g.fillText(formatWind(wind.strength), bx - 8, cy);
+    g.textAlign = "start";
   }
 
   private strokePath(f: Fit, path: Vec[], shown: number): Vec | null {

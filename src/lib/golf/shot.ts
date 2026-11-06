@@ -1,6 +1,7 @@
 import type { Bounds, Hole } from "./holes";
 import { step, type Method } from "./optimizer";
 import { dist, type Vec } from "./vec";
+import { noisyGrad, windRng } from "./wind";
 
 /** 1打で進めるステップの数 */
 export const STEPS_PER_SHOT = 12;
@@ -28,13 +29,19 @@ export function isInCup(p: Vec, hole: Hole): boolean {
   return dist(p, hole.cup) <= hole.cupRadius;
 }
 
-/** 1打を計算する。速度は打つたびに 0 から始める。カップに入るか OB になった所で止める */
-export function simulateShot(hole: Hole, from: Vec, lr: number, method: Method, steps = STEPS_PER_SHOT): ShotResult {
+/**
+ * 1打を計算する。速度は打つたびに 0 から始める。カップに入るか OB になった所で止める。
+ * 風のあるホールでは、毎ステップの勾配に風のノイズを足す。ノイズの乱数は、そのホールの種と何打目か（stroke、0 始まり）で決まる
+ */
+export function simulateShot(hole: Hole, from: Vec, lr: number, method: Method, stroke = 0, steps = STEPS_PER_SHOT): ShotResult {
   const path: Vec[] = [from];
   const losses: number[] = [hole.loss(from)];
+  const wind = hole.wind;
+  const rand = wind ? windRng(wind, stroke) : null;
+  const grad = wind && rand ? (p: Vec) => noisyGrad(hole.grad(p), wind, rand) : hole.grad;
   let s = { pos: from, vel: { x: 0, y: 0 } };
   for (let i = 0; i < steps; i++) {
-    s = step(method, s, lr, hole.grad);
+    s = step(method, s, lr, grad);
     path.push(s.pos);
     if (isOut(s.pos, hole.bounds)) {
       losses.push(Number.isFinite(hole.loss(s.pos)) ? hole.loss(s.pos) : Number.MAX_VALUE);

@@ -974,6 +974,11 @@ p {
     min-height: 260px;
   }
 
+  .board.has-result {
+    height: auto;
+    min-height: 600px;
+  }
+
   .chart {
     height: 72px;
   }
