@@ -300,6 +300,113 @@ p {
   opacity: 0.7;
 }
 
+/* ---- 順位表（合言葉） ---- */
+.rank-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rank-body .rank-list {
+  margin: 0;
+}
+
+.rank-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.rank-score.is-first {
+  color: var(--cyan);
+}
+
+.rank-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rank-code-text {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.rank-change {
+  height: 28px;
+  padding: 0 8px;
+  background: var(--board);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 12px;
+  flex: none;
+}
+
+.rank-change:hover {
+  border-color: var(--text);
+}
+
+.rank-go {
+  justify-content: center;
+}
+
+.board-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.board-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 8px;
+  background: var(--floor);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  font-family: var(--f-body);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.board-input:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.board-submit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.board-send {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.board-note,
+.board-status {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.board-status.is-good {
+  color: var(--leaf);
+  opacity: 1;
+}
+
+.board-status.is-warn {
+  color: var(--vermilion);
+  opacity: 1;
+}
+
 /* ---- 勾配ゴルフ ---- */
 .golf {
   height: 100dvh;
@@ -917,6 +1024,16 @@ p {
 
   .rank-box {
     padding: 12px;
+  }
+
+  .board-input,
+  .rank-go {
+    height: 44px;
+  }
+
+  .board-input,
+  .rank-name {
+    font-size: 13px;
   }
 
   .golf {

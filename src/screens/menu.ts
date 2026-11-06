@@ -1,9 +1,11 @@
 import { isDefenseFinished } from "../lib/defense/game";
 import { isFinished } from "../lib/golf/game";
+import { envConfig, fetchTop, validateCode } from "../lib/board";
 import type { Route } from "../lib/route";
-import { golfBestText, hasNoRecord } from "../lib/save";
-import { readSave } from "../store";
+import { golfBestText, hasNoRecord, type SaveData } from "../lib/save";
+import { readSave, saveData } from "../store";
 import { el, keycap, term, type Screen } from "../ui";
+import { OFFLINE_TEXT, textField } from "./board-ui";
 import { bestText as rewardBestText, isRewardMidway } from "./reward";
 import { bestText as rogueBestText } from "./rogue";
 
@@ -85,10 +87,12 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
 
   const table = el("section", "xp-table", [headRow, ...rows], { "aria-label": "実験" });
 
+  let destroyed = false;
   const boards = GAMES.map((g) => {
     const lines = ["1", "2", "3"].map((n) => el("li", "rank-line", [el("span", "num rank-no", [n]), el("span", "num", ["—"])]));
     const box = el("div", "rank-box", [el("div", "rank-game", [g.en]), el("ol", "rank-list", lines), el("p", "rank-empty", ["まだ記録なし"])]);
     box.style.setProperty("--accent", `var(${g.accent})`);
+    if (g.route === "golf") mountGolfBoard(box, save, () => destroyed);
     return box;
   });
   const ranks = el("section", "ranks", [el("h2", "section-title", [term("TOP 3", "上位3人")]), el("div", "rank-grid", boards)]);
@@ -107,5 +111,83 @@ export function createMenu(nav: { go(r: Route): void }): Screen {
     }
   };
   window.addEventListener("keydown", onKey);
-  return { root, destroy: () => window.removeEventListener("keydown", onKey) };
+  return {
+    root,
+    destroy: () => {
+      destroyed = true;
+      window.removeEventListener("keydown", onKey);
+    },
+  };
+}
+
+/** 勾配ゴルフの順位の枠：合言葉の入力、または合言葉の表の上位3人 */
+function mountGolfBoard(box: HTMLElement, save: SaveData, isGone: () => boolean): void {
+  const game = el("div", "rank-game", ["Gradient Golf"]);
+  const body = el("div", "rank-body");
+  box.replaceChildren(game, body);
+  let token = 0;
+
+  const note = (text: string) => el("p", "rank-empty", [text]);
+  const lines = (rows: { name: string; score: number }[]) =>
+    el(
+      "ol",
+      "rank-list",
+      [0, 1, 2].map((i) => {
+        const r = rows[i];
+        return el("li", "rank-line", [
+          el("span", "num rank-no", [String(i + 1)]),
+          el("span", "rank-name", [r ? r.name : "—"]),
+          el("span", `num rank-score${i === 0 && r ? " is-first" : ""}`, [r ? `${r.score} 打` : ""]),
+        ]);
+      }),
+    );
+
+  function showForm(): void {
+    token++;
+    const f = textField("PASSPHRASE", "合言葉", save.board.code ?? "");
+    const btn = el("button", "btn btn-primary rank-go", [term("SHOW", "表示")], { type: "button" });
+    const sync = () => {
+      btn.disabled = validateCode(f.input.value) === null;
+    };
+    const go = () => {
+      const c = validateCode(f.input.value);
+      if (c === null) return;
+      save.board.code = c;
+      saveData(save);
+      showBoard();
+    };
+    f.input.addEventListener("input", sync);
+    f.input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") go();
+    });
+    btn.addEventListener("click", go);
+    sync();
+    body.replaceChildren(lines([]), f.wrap, btn);
+  }
+
+  function showBoard(): void {
+    const code = save.board.code;
+    if (code === null) return showForm();
+    const mine = token + 1;
+    token = mine;
+    const change = el("button", "rank-change", [term("CHANGE", "変更")], { type: "button" });
+    change.addEventListener("click", showForm);
+    const head = el("div", "rank-code", [el("span", "num rank-code-text", [code]), change]);
+    const cfg = envConfig();
+    const offline = () => {
+      const best = save.golf.best;
+      const notes = best === null ? ["まだ記録なし", OFFLINE_TEXT] : [OFFLINE_TEXT];
+      body.replaceChildren(head, lines(best === null ? [] : [{ name: "この端末", score: best }]), ...notes.map(note));
+    };
+    if (!cfg) return offline();
+    body.replaceChildren(head, lines([]), note("読み込み中…"));
+    void fetchTop(cfg, code).then((rows) => {
+      if (isGone() || token !== mine) return;
+      if (rows === null) return offline();
+      body.replaceChildren(head, lines(rows.map((r) => ({ name: r.nickname, score: r.score }))), ...(rows.length === 0 ? [note("まだ記録なし")] : []));
+    });
+  }
+
+  if (save.board.code === null) showForm();
+  else showBoard();
 }
