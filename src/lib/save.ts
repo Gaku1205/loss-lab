@@ -4,6 +4,8 @@ import { LR_MAX, LR_MIN } from "./golf/shot";
 import type { DefenseProgress } from "./defense/game";
 import { inField, remaining, type Neuron } from "./defense/model";
 import { WAVES } from "./defense/wave";
+import { BOSSES } from "./rogue/boss";
+import type { RogueBest } from "./rogue/game";
 
 /** localStorage のキー */
 export const SAVE_KEY = "loss-lab:v1";
@@ -21,10 +23,12 @@ export interface SaveData {
     /** 最終波を守り切った時のテストの正解率（%）の最高記録（高いほど良い） */
     best: number | null;
   };
+  /** Model Rogue の最高記録（到達階の最高と、全階を倒した回数）。途中の挑戦は保存しない */
+  rogue: RogueBest;
 }
 
 export function emptySave(): SaveData {
-  return { golf: { progress: null, best: null }, defense: { progress: null, best: null } };
+  return { golf: { progress: null, best: null }, defense: { progress: null, best: null }, rogue: { floor: null, loops: 0 } };
 }
 
 type Rec = Record<string, unknown>;
@@ -75,6 +79,11 @@ export function parseSave(raw: string | null): SaveData {
     const { progress, best } = data.defense;
     out.defense.progress = parseDefense(progress);
     out.defense.best = isInt(best, 0, 100) ? best : null;
+  }
+  if (isRec(data.rogue)) {
+    const { floor, loops } = data.rogue;
+    out.rogue.floor = isInt(floor, 1, BOSSES.length) ? floor : null;
+    out.rogue.loops = isInt(loops, 0, 100000) ? loops : 0;
   }
   return out;
 }
