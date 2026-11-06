@@ -88,6 +88,26 @@ export const ROGUE_HOWTO: readonly HowtoCard[] = [
   },
 ];
 
+/** 報酬設計室の遊び方（4枚。文言は docs/design.md） */
+export const REWARD_HOWTO: readonly HowtoCard[] = [
+  { en: "GOAL", ja: "ゴール", body: "条件ブロックを並べて報酬を書き、ロボットに課題をやらせる。3問をクリアするのがゴール。" },
+  {
+    en: "REWARD",
+    ja: "報酬",
+    body: "1歩ごとに、成り立った条件の値を足した物が報酬。LEARN を押すと、ロボットが報酬を頼りに試行をくり返して動きを覚える。",
+  },
+  {
+    en: "CHEAT",
+    ja: "ズル",
+    body: "書き方に穴があると、ロボットは課題をせずに報酬だけ稼ぐ。往復やぐるぐる、近道が朱の線で出たら、条件を直す。",
+  },
+  {
+    en: "CONTROLS",
+    ja: "操作",
+    body: "棚の条件を押して並べる（4つまで）。LEARN で学習は5回まで。少ない条件・少ない試行でクリアするほど高得点。",
+  },
+];
+
 /** 境界防衛線の遊び方（4枚。文言は docs/design.md） */
 export const DEFENSE_HOWTO: readonly HowtoCard[] = [
   { en: "GOAL", ja: "ゴール", body: "流れてくる ○ と ● を、陣地で正しく仕分けて守る。誤りやすり抜けでライフが減り、0 になるとその波は失敗。" },

@@ -1984,6 +1984,20 @@ p {
   color: var(--leaf);
 }
 
+.reward .howto-label {
+  color: var(--leaf);
+}
+
+.reward .howto-actions .btn-primary,
+.reward .howto-actions .btn-primary:hover:not(:disabled) {
+  border-color: var(--leaf);
+  color: var(--leaf);
+}
+
+.reward .howto-tick.is-on {
+  background: var(--leaf);
+}
+
 .btn-reward,
 .btn-reward:hover:not(:disabled) {
   border-color: var(--leaf);

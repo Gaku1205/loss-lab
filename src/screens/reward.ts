@@ -24,8 +24,10 @@ import { isBetter, totalScore } from "../lib/reward/score";
 import { MAX_BLOCKS, MAX_TRIALS, TASKS } from "../lib/reward/tasks";
 import type { Route } from "../lib/route";
 import type { SaveData } from "../lib/save";
-import { readSave, saveData } from "../store";
+import { isLast, nextCard, prevCard } from "../lib/howto";
+import { readHowtoSeen, readSave, saveData, saveHowtoSeen } from "../store";
 import { el, keycap, prefersReducedMotion, term, type Screen } from "../ui";
+import { buildHowto, REWARD_HOWTO } from "./howto";
 import { RewardBoard } from "./reward-board";
 import { RewardChart } from "./reward-chart";
 
@@ -33,7 +35,9 @@ const EPISODE_MS = 8;
 const STEP_MS = 80;
 const ALARM_MS = 600;
 
-type Overlay = { kind: "clear" } | { kind: "failed" } | { kind: "result"; newBest: boolean } | null;
+type Overlay = { kind: "clear" } | { kind: "failed" } | { kind: "result"; newBest: boolean } | { kind: "howto"; index: number } | null;
+
+const HOWTO_GAME = "reward";
 
 /** 学習を押した後の様子 */
 interface Shown {
@@ -63,7 +67,10 @@ export function createReward(nav: { go(r: Route): void }): Screen {
   const save: SaveData = readSave();
   let progress: RewardProgress = save.reward.progress ?? newRewardRun();
   let shown: Shown | null = null;
+  let howtoSeen = readHowtoSeen(HOWTO_GAME);
+  // 初めて開いた時だけ遊び方の板を自動で出す（クリア・失敗・結果の板が出る状態では出さない）
   let overlay: Overlay = overlayFor(progress);
+  if (overlay === null && !howtoSeen) overlay = { kind: "howto", index: 0 };
   let note = taskIntroNote(progress.task);
   let noteWarn = false;
   let alarmUntil = 0;
@@ -78,6 +85,8 @@ export function createReward(nav: { go(r: Route): void }): Screen {
   // ---- 上の帯 ----
   const menuBtn = el("button", "btn", [term("MENU", "メニュー")], { type: "button" });
   menuBtn.addEventListener("click", () => nav.go("menu"));
+  const helpBtn = el("button", "btn btn-help num", ["?"], { type: "button", "aria-label": "遊び方" });
+  helpBtn.addEventListener("click", () => openHowto());
   const numTask = el("span", "num big");
   const numBlocks = el("span", "num big");
   const numTrials = el("span", "num big");
@@ -86,7 +95,10 @@ export function createReward(nav: { go(r: Route): void }): Screen {
   const readout = (en: string, ja: string, value: HTMLElement) =>
     el("div", "readout", [term(en, ja, "label"), el("div", "readout-val", [value])]);
   const top = el("header", "golf-top", [
-    el("div", "golf-title", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("h1", "game-title", [term("REWARD LAB", "報酬設計室")])]),
+    el("div", "golf-title", [
+      el("div", "title-btns", [el("div", "btn-wrap", [menuBtn, keycap("Esc")]), el("div", "btn-wrap", [helpBtn, keycap("H")])]),
+      el("h1", "game-title", [term("REWARD LAB", "報酬設計室")]),
+    ]),
     el("div", "readouts readouts-reward", [
       readout("TASK", "課題", numTask),
       readout("BLOCKS", "条件", numBlocks),
@@ -167,6 +179,7 @@ export function createReward(nav: { go(r: Route): void }): Screen {
       );
     }
     learnBtn.disabled = !canLearn(progress) || busy() || overlay !== null;
+    helpBtn.disabled = !canOpenHowto();
     noteText.textContent = note;
     noteText.classList.toggle("is-warn", noteWarn);
     renderPanel();
@@ -181,6 +194,12 @@ export function createReward(nav: { go(r: Route): void }): Screen {
     panel.classList.toggle("is-open", overlay !== null);
     boardWrap.classList.toggle("has-panel", overlay !== null);
     if (!overlay) return;
+    if (overlay.kind === "howto") {
+      panel.append(
+        ...buildHowto(REWARD_HOWTO, { index: overlay.index, count: REWARD_HOWTO.length }, { onNext: howtoNext, onBack: howtoBack, onClose: closeHowto }),
+      );
+      return;
+    }
     const toMenu = () => {
       const b = el("button", "btn", [term("MENU", "メニューへ")], { type: "button" });
       b.addEventListener("click", () => nav.go("menu"));
@@ -348,8 +367,39 @@ export function createReward(nav: { go(r: Route): void }): Screen {
     syncDom();
   }
 
+  /** 遊び方の板を開けるのは、学習して動いていなくて他の板が出ていない間だけ */
+  function canOpenHowto(): boolean {
+    return !busy() && overlay === null;
+  }
+
+  function openHowto(): void {
+    if (!canOpenHowto()) return;
+    overlay = { kind: "howto", index: 0 };
+    syncDom();
+  }
+
+  /** 閉じたら既読にする（開き直しでは状態を変えない） */
+  function closeHowto(): void {
+    if (overlay?.kind !== "howto") return;
+    overlay = null;
+    if (!howtoSeen) {
+      howtoSeen = true;
+      saveHowtoSeen(HOWTO_GAME);
+    }
+    syncDom();
+  }
+
+  function howtoStep(dir: 1 | -1): void {
+    if (overlay?.kind !== "howto") return;
+    const p = { index: overlay.index, count: REWARD_HOWTO.length };
+    overlay = { kind: "howto", index: (dir === 1 ? nextCard(p) : prevCard(p)).index };
+    syncDom();
+  }
+  const howtoNext = () => howtoStep(1);
+  const howtoBack = () => howtoStep(-1);
+
   function proceed(): void {
-    if (!overlay) return;
+    if (!overlay || overlay.kind === "howto") return;
     if (overlay.kind === "clear") startTask(nextTask(progress));
     else if (overlay.kind === "failed") startTask(retryTask(progress));
     else startTask(newRewardRun());
@@ -357,6 +407,39 @@ export function createReward(nav: { go(r: Route): void }): Screen {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // 遊び方の板が出ている間は、板の操作だけ受け付ける
+    if (overlay?.kind === "howto") {
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          closeHowto();
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (isLast({ index: overlay.index, count: REWARD_HOWTO.length })) closeHowto();
+          else howtoNext();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          howtoNext();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          howtoBack();
+          break;
+        case " ":
+        case "Spacebar":
+        case "ArrowUp":
+        case "ArrowDown":
+          e.preventDefault();
+          break;
+      }
+      return;
+    }
+    if (e.key === "h" || e.key === "H") {
+      if (!e.repeat) openHowto();
+      return;
+    }
     if (e.key === "Escape") {
       e.preventDefault();
       nav.go("menu");
