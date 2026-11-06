@@ -1,6 +1,18 @@
 import { contourLevels, contourSegments } from "../lib/golf/contour";
 import type { Hole } from "../lib/golf/holes";
 import type { Vec } from "../lib/golf/vec";
+import {
+  buildSurface,
+  cellOrder,
+  DEFAULT_CAMERA,
+  fitScreen,
+  gridPoint,
+  liftZ,
+  project,
+  toPixel,
+  type ScreenFit,
+  type Surface,
+} from "../lib/golf/view3d";
 import { formatWind, WIND_MAX, windDir, type Wind } from "../lib/golf/wind";
 import { COLORS } from "../ui";
 
@@ -21,6 +33,19 @@ export interface BoardView {
   obMark: Vec | null;
   /** 盤の枠を朱にする（失敗） */
   alarm: boolean;
+  /** 打つ前の立体表示（斜め上から）。false なら上から見た等高線 */
+  view3d: boolean;
+}
+
+/** 立体表示の格子の升の数（0.1 刻み） */
+const MESH_NX = 32;
+const MESH_NY = 20;
+
+interface Scene3D {
+  key: string;
+  surface: Surface;
+  fit: ScreenFit;
+  bg: HTMLCanvasElement;
 }
 
 interface Fit {
@@ -226,8 +251,154 @@ export class Board {
     return { x: (last.x - f.cx) / f.s, y: (f.cy - last.y) / f.s };
   }
 
+  // ---- 立体表示（打つ前だけ） ----
+
+  private scene: Scene3D | null = null;
+
+  private ensureScene(hole: Hole): Scene3D {
+    const dpr = window.devicePixelRatio || 1;
+    const key = `${hole.no}:${this.w}x${this.h}@${dpr}`;
+    if (this.scene && this.scene.key === key) return this.scene;
+    const b = hole.bounds;
+    const surface = buildSurface(hole.loss, b, MESH_NX, MESH_NY);
+    const cam = DEFAULT_CAMERA;
+    const pts: { u: number; v: number }[] = [];
+    for (let j = 0; j <= MESH_NY; j++) {
+      for (let i = 0; i <= MESH_NX; i++) pts.push(project(cam, gridPoint(b, MESH_NX, MESH_NY, i, j), surface.z[j * (MESH_NX + 1) + i]));
+    }
+    const fit = fitScreen(pts, this.w, this.h, this.w < 600 ? 16 : 32);
+    const bg = document.createElement("canvas");
+    bg.width = this.canvas.width;
+    bg.height = this.canvas.height;
+    const scene: Scene3D = { key, surface, fit, bg };
+    const g = bg.getContext("2d");
+    if (g) {
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.paintSurface(g, hole, scene);
+    }
+    this.scene = scene;
+    return scene;
+  }
+
+  private lift3d(hole: Hole, s: Scene3D, p: Vec): Vec {
+    const z = liftZ(hole.loss(p), s.surface.scale, s.surface.zMax);
+    return toPixel(s.fit, project(DEFAULT_CAMERA, p, z));
+  }
+
+  /** 地形を奥から手前へ面で塗って、罫色の線で格子を引く。スタートとカップも描く */
+  private paintSurface(g: CanvasRenderingContext2D, hole: Hole, s: Scene3D): void {
+    const b = hole.bounds;
+    const { surface, fit } = s;
+    const cam = DEFAULT_CAMERA;
+    const at = (i: number, j: number): Vec =>
+      toPixel(fit, project(cam, gridPoint(b, MESH_NX, MESH_NY, i, j), surface.z[j * (MESH_NX + 1) + i]));
+    g.fillStyle = COLORS.floor;
+    g.fillRect(0, 0, this.w, this.h);
+    g.fillStyle = COLORS.board;
+    g.strokeStyle = COLORS.rule;
+    g.lineWidth = 1;
+    g.lineJoin = "round";
+    for (const { i, j } of cellOrder(cam, b, MESH_NX, MESH_NY)) {
+      const q = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
+      g.beginPath();
+      g.moveTo(q[0].x, q[0].y);
+      for (let k = 1; k < 4; k++) g.lineTo(q[k].x, q[k].y);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    }
+    // OB の境目（コースの外枠）
+    g.strokeStyle = COLORS.text;
+    g.globalAlpha = 0.45;
+    g.beginPath();
+    const edge: [number, number][] = [];
+    for (let i = 0; i <= MESH_NX; i++) edge.push([i, 0]);
+    for (let j = 1; j <= MESH_NY; j++) edge.push([MESH_NX, j]);
+    for (let i = MESH_NX - 1; i >= 0; i--) edge.push([i, MESH_NY]);
+    for (let j = MESH_NY - 1; j >= 0; j--) edge.push([0, j]);
+    edge.forEach(([i, j], k) => {
+      const p = at(i, j);
+      if (k === 0) g.moveTo(p.x, p.y);
+      else g.lineTo(p.x, p.y);
+    });
+    g.stroke();
+    g.globalAlpha = 1;
+
+    // スタート（小さな四角）とカップ（輪と十字）。地形の上の高さに置く
+    const st = this.lift3d(hole, s, hole.start);
+    g.strokeStyle = COLORS.text;
+    g.strokeRect(Math.round(st.x - 3) + 0.5, Math.round(st.y - 3) + 0.5, 6, 6);
+    const cup = this.lift3d(hole, s, hole.cup);
+    const ring = Math.max(6, hole.cupRadius * fit.s);
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.ellipse(cup.x, cup.y, ring, ring * Math.sin(cam.pitch), 0, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(cup.x - 3, cup.y);
+    g.lineTo(cup.x + 3, cup.y);
+    g.moveTo(cup.x, cup.y - 3);
+    g.lineTo(cup.x, cup.y + 3);
+    g.stroke();
+    g.fillStyle = COLORS.text;
+    g.font = '600 11px "Chakra Petch", system-ui, sans-serif';
+    g.textBaseline = "middle";
+    g.fillText("START", st.x + 10, st.y - 10);
+    g.fillText("CUP", cup.x + ring + 6, cup.y - 10);
+  }
+
+  private draw3d(v: BoardView): void {
+    const s = this.ensureScene(v.hole);
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(s.bg, 0, 0);
+    ctx.restore();
+
+    // 前の打の軌跡（地形の上の高さで）
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.lineWidth = 1.5;
+    for (const t of v.trails) {
+      if (t.path.length === 0) continue;
+      ctx.strokeStyle = t.ob ? COLORS.vermilion : COLORS.cyan;
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath();
+      t.path.forEach((p, k) => {
+        const q = this.lift3d(v.hole, s, p);
+        if (k === 0) ctx.moveTo(q.x, q.y);
+        else ctx.lineTo(q.x, q.y);
+      });
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    const p = this.lift3d(v.hole, s, v.ball);
+    ctx.strokeStyle = COLORS.cyan;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.text;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (v.hole.wind) this.drawWind(ctx, v.hole.wind);
+    if (v.alarm) {
+      ctx.strokeStyle = COLORS.vermilion;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, this.w - 2, this.h - 2);
+    }
+  }
+
   draw(v: BoardView): void {
     if (!this.ensureSize()) return;
+    if (v.view3d && !v.live) {
+      this.draw3d(v);
+      return;
+    }
     const f = this.fit(v.hole);
     this.drawBackground(v.hole, f);
     const ctx = this.ctx;

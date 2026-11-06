@@ -51,6 +51,8 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   let noteWarn = false;
   let raf = 0;
   const sound = new GolfSound(readSoundOn());
+  // 打つ前だけの立体表示。保存しない（打つ・ホールが変わると上からに戻る）
+  let view3d = false;
 
   const persist = () => {
     save.golf.progress = progress;
@@ -99,6 +101,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   const gdBtn = el("button", "seg", ["GD"], { type: "button" });
   const momBtn = el("button", "seg", ["Momentum"], { type: "button" });
   const soundBtn = el("button", "seg num", [], { type: "button", "aria-label": "効果音" });
+  const viewBtn = el("button", "seg num", [], { type: "button", "aria-label": "視点" });
   const shootBtn = el("button", "btn btn-primary btn-shoot", [term("SHOOT", "打つ")], { type: "button" });
   const noteText = el("span", "note-text");
   const controls = el("footer", "golf-controls", [
@@ -112,6 +115,10 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
         el("div", "ctrl-body", [
           el("div", "segs", [el("div", "seg-wrap", [gdBtn, keycap("1")]), el("div", "seg-wrap", [momBtn, keycap("2"), el("span", "beta num", ["β=0.9"])])]),
         ]),
+      ]),
+      el("div", "ctrl ctrl-view", [
+        term("VIEW", "視点", "label"),
+        el("div", "ctrl-body", [el("div", "seg-wrap", [viewBtn, keycap("V")])]),
       ]),
       el("div", "ctrl ctrl-sound", [
         term("SOUND", "効果音", "label"),
@@ -157,6 +164,12 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     soundBtn.classList.toggle("is-on", sound.enabled);
     soundBtn.setAttribute("aria-pressed", String(sound.enabled));
     const locked = busy();
+    // 打てない間（玉が動く・板が出ている）は立体にしない
+    if (locked) view3d = false;
+    viewBtn.textContent = view3d ? "3D" : "TOP";
+    viewBtn.classList.toggle("is-on", view3d);
+    viewBtn.setAttribute("aria-pressed", String(view3d));
+    viewBtn.disabled = locked;
     shootBtn.disabled = locked;
     slider.disabled = anim !== null;
     gdBtn.disabled = anim !== null;
@@ -246,7 +259,9 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       live = { trail: { path: anim.shot.path, ob: anim.shot.outcome === "ob" }, shown };
       if (shown >= total) finishAnim(now);
     }
-    board.draw({ hole: viewHole(), ball, trails, live: anim ? live : null, obMark, alarm: now < alarmUntil });
+    // OB・失敗の後の待ちの間も、上から見た図で出す
+    const flat = anim !== null || now < holdUntil || overlay !== null;
+    board.draw({ hole: viewHole(), ball, trails, live: anim ? live : null, obMark, alarm: now < alarmUntil, view3d: view3d && !flat });
     chart.draw({
       points: anim ? livePoints(live) : points,
       marks,
@@ -279,6 +294,8 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     if (busy()) return;
     const hole = currentHole(progress);
     if (!hole) return;
+    // 打つと、上から見た図に戻る
+    view3d = false;
     const shot = simulateShot(hole, progress.pos, progress.lr, progress.method, progress.strokes);
     const after = applyShot(progress, shot);
     const before = shot.losses[0];
@@ -406,6 +423,12 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     syncDom();
   }
 
+  function toggleView(): void {
+    if (busy()) return;
+    view3d = !view3d;
+    syncDom();
+  }
+
   function nudgeLr(dir: number): void {
     const t = Math.round(lrToSlider(progress.lr) * SLIDER_TICKS) + dir;
     setLr(sliderToLr(Math.min(SLIDER_TICKS, Math.max(0, t)) / SLIDER_TICKS));
@@ -416,6 +439,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   momBtn.addEventListener("click", () => setMethod("momentum"));
   shootBtn.addEventListener("click", shoot);
   soundBtn.addEventListener("click", toggleSound);
+  viewBtn.addEventListener("click", toggleView);
   // ブラウザの制約で、最初の操作のあとに AudioContext を開始する（オンの時だけ）
   const onFirstGesture = () => sound.unlock();
 
@@ -426,6 +450,10 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       case "m":
       case "M":
         if (!e.repeat) toggleSound();
+        break;
+      case "v":
+      case "V":
+        if (!e.repeat) toggleView();
         break;
       case " ":
       case "Spacebar":
