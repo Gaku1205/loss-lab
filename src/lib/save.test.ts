@@ -94,6 +94,25 @@ describe("ページの切り替え", () => {
     expect(routeHash("golf")).toBe("#/golf");
     expect(parseRoute("#/defense")).toBe("defense");
     expect(routeHash("defense")).toBe("#/defense");
+    expect(parseRoute("#/rogue")).toBe("rogue");
+    expect(routeHash("rogue")).toBe("#/rogue");
     expect(routeHash("menu")).toBe("#/");
+  });
+});
+
+describe("Model Rogue の記録", () => {
+  it("到達階と周回を読み書きできる", () => {
+    const save = emptySave();
+    save.rogue = { floor: 3, loops: 2 };
+    expect(parseSave(serializeSave(save))).toEqual(save);
+  });
+  it("前の版（rogue が無い）も読める", () => {
+    const s = parseSave(JSON.stringify({ golf: { best: 12, progress: null } }));
+    expect(s.rogue).toEqual({ floor: null, loops: 0 });
+  });
+  it("おかしな値は捨てる", () => {
+    expect(parseSave(JSON.stringify({ rogue: { floor: 9, loops: -1 } })).rogue).toEqual({ floor: null, loops: 0 });
+    expect(parseSave(JSON.stringify({ rogue: { floor: 2.5, loops: "3" } })).rogue).toEqual({ floor: null, loops: 0 });
+    expect(parseSave(JSON.stringify({ rogue: { floor: 4, loops: 1 } })).rogue).toEqual({ floor: 4, loops: 1 });
   });
 });

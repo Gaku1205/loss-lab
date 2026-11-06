@@ -1103,3 +1103,437 @@ p {
     gap: 4px 16px;
   }
 }
+
+/* ---- モデル・ローグ ---- */
+.rogue :focus-visible {
+  outline-color: var(--amber);
+}
+
+.rogue .note-label {
+  color: var(--amber);
+}
+
+.btn-rogue,
+.btn-rogue:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.is-amber {
+  color: var(--amber);
+}
+
+.rogue-chart {
+  height: 140px;
+  border-top: 0;
+}
+
+.rogue-mid {
+  min-height: 300px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rogue .panel {
+  z-index: 10;
+}
+
+.rogue-mid.is-alarm {
+  outline: 1px solid var(--vermilion);
+  outline-offset: -1px;
+}
+
+.rg-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+}
+
+.rg-sec {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.rg-sec + .rg-sec {
+  border-left: 1px solid var(--rule);
+}
+
+.rg-boss {
+  justify-content: center;
+}
+
+.rg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.boss-floor {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.boss-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.boss-canvas {
+  width: 240px;
+  height: auto;
+  border: 1px solid var(--rule);
+  display: block;
+  flex: 0 0 auto;
+}
+
+.boss-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.boss-name .term-en {
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+}
+
+.boss-name .term {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+.stat-table {
+  border-top: 1px solid var(--rule);
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.stat-row .num {
+  font-size: 16px;
+}
+
+.rg-gauge {
+  justify-content: center;
+  gap: 12px;
+}
+
+.gauge-num {
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 500;
+  color: var(--amber);
+}
+
+.gauge {
+  position: relative;
+  height: 24px;
+  margin-top: 24px;
+  border: 1px solid var(--rule);
+  background: var(--floor);
+}
+
+.gauge-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--amber);
+}
+
+.gauge-target {
+  position: absolute;
+  top: -7px;
+  bottom: -7px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text);
+}
+
+.target-label {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 2px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.train-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.train-bar {
+  position: relative;
+  flex: 1 1 auto;
+  height: 6px;
+  background: var(--floor);
+}
+
+.train-fill {
+  background: var(--text);
+  opacity: 0.45;
+}
+
+.train-row .num {
+  width: 40px;
+  text-align: right;
+}
+
+.model-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--rule);
+  font-family: var(--f-num);
+  font-size: 11px;
+}
+
+.model-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--rule);
+  opacity: 0.7;
+}
+
+.model-list li.is-last {
+  color: var(--amber);
+  opacity: 1;
+}
+
+.model-no {
+  width: 16px;
+  text-align: right;
+}
+
+.model-list .term-en {
+  font-family: var(--f-num);
+  font-weight: 400;
+}
+
+.rogue-controls {
+  gap: 12px;
+}
+
+.hand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.card-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.card {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 96px;
+  padding: 8px 12px;
+  background: var(--board);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.card:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.card-type .term-en {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.card-type .term-ja {
+  font-size: 10px;
+}
+
+.card-name .term {
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.card-name .term-en {
+  font-size: 14px;
+  letter-spacing: 0.06em;
+}
+
+.card-effect {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.unlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.unlock-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.unlock-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.unlock-list .term-en {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 760px) {
+  .rogue-chart {
+    height: 104px;
+  }
+
+  /* スマホでは手札を学習曲線のすぐ下に置き、板は画面の中央に固定する */
+  .rogue-controls {
+    order: 2;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .rogue-mid {
+    order: 3;
+    height: auto;
+    min-height: 0;
+    border-bottom: 0;
+  }
+
+  .rogue .panel {
+    position: fixed;
+  }
+
+  .boss-canvas {
+    width: 160px;
+  }
+
+  .rg-grid {
+    position: static;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rg-sec {
+    padding: 16px;
+  }
+
+  .rg-sec + .rg-sec {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .boss-body {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .boss-info {
+    flex: 1 1 auto;
+  }
+
+  .boss-name .term-en {
+    font-size: 20px;
+  }
+
+  .stat-row .term {
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.3;
+  }
+
+  .gauge-num {
+    font-size: 36px;
+  }
+
+  .model-list {
+    max-height: 160px;
+  }
+
+  .readouts-rogue {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .readouts-rogue .term-en {
+    white-space: normal;
+    letter-spacing: 0.04em;
+  }
+
+  .rogue .game-title .term {
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.3;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .card {
+    height: 88px;
+    padding: 8px;
+  }
+
+  .card-name .term-en {
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+
+  .card-effect {
+    font-size: 11px;
+  }
+}

@@ -3,6 +3,7 @@ import { parseRoute, routeHash, type Route } from "./lib/route";
 import { createDefense } from "./screens/defense";
 import { createGolf } from "./screens/golf";
 import { createMenu } from "./screens/menu";
+import { createRogue } from "./screens/rogue";
 import type { Screen } from "./ui";
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -21,7 +22,14 @@ function render(): void {
   current?.destroy();
   root.replaceChildren();
   const route = parseRoute(location.hash);
-  current = route === "golf" ? createGolf({ go }) : route === "defense" ? createDefense({ go }) : createMenu({ go });
+  current =
+    route === "golf"
+      ? createGolf({ go })
+      : route === "defense"
+        ? createDefense({ go })
+        : route === "rogue"
+          ? createRogue({ go })
+          : createMenu({ go });
   root.append(current.root);
   window.scrollTo(0, 0);
 }
