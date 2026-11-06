@@ -7,10 +7,11 @@ import { lrToSlider, simulateShot, sliderToLr, STEPS_PER_SHOT, type ShotResult }
 import type { Vec } from "../lib/golf/vec";
 import type { Route } from "../lib/route";
 import type { SaveData } from "../lib/save";
-import { readSave, saveData } from "../store";
+import { readSave, readSoundOn, saveData, saveSoundOn } from "../store";
 import { el, keycap, prefersReducedMotion, term, type Screen } from "../ui";
 import { Board, type Trail } from "./golf-board";
 import { LossChart, type LossPoint } from "./golf-chart";
+import { GolfSound } from "./golf-sound";
 
 const STEP_MS = 70;
 const OB_HOLD_MS = 800;
@@ -49,6 +50,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   let note = isFinished(progress) ? "" : holeIntroNote(viewIdx + 1);
   let noteWarn = false;
   let raf = 0;
+  const sound = new GolfSound(readSoundOn());
 
   const persist = () => {
     save.golf.progress = progress;
@@ -96,6 +98,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   const lrVal = el("span", "num lr-val");
   const gdBtn = el("button", "seg", ["GD"], { type: "button" });
   const momBtn = el("button", "seg", ["Momentum"], { type: "button" });
+  const soundBtn = el("button", "seg num", [], { type: "button", "aria-label": "効果音" });
   const shootBtn = el("button", "btn btn-primary btn-shoot", [term("SHOOT", "打つ")], { type: "button" });
   const noteText = el("span", "note-text");
   const controls = el("footer", "golf-controls", [
@@ -109,6 +112,10 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
         el("div", "ctrl-body", [
           el("div", "segs", [el("div", "seg-wrap", [gdBtn, keycap("1")]), el("div", "seg-wrap", [momBtn, keycap("2"), el("span", "beta num", ["β=0.9"])])]),
         ]),
+      ]),
+      el("div", "ctrl ctrl-sound", [
+        term("SOUND", "効果音", "label"),
+        el("div", "ctrl-body", [el("div", "seg-wrap", [soundBtn, keycap("M")])]),
       ]),
       el("div", "ctrl ctrl-shoot", [el("div", "btn-wrap", [shootBtn, keycap("Space")])]),
     ]),
@@ -146,6 +153,9 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     momBtn.classList.toggle("is-on", progress.method === "momentum");
     gdBtn.setAttribute("aria-pressed", String(progress.method === "gd"));
     momBtn.setAttribute("aria-pressed", String(progress.method === "momentum"));
+    soundBtn.textContent = sound.enabled ? "ON" : "OFF";
+    soundBtn.classList.toggle("is-on", sound.enabled);
+    soundBtn.setAttribute("aria-pressed", String(sound.enabled));
     const locked = busy();
     shootBtn.disabled = locked;
     slider.disabled = anim !== null;
@@ -288,6 +298,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     progress = after.progress;
     persist();
     anim = { shot, event: after.event, next: after.progress, note: text, t0: performance.now() };
+    sound.play("shot");
     strokes = after.strokes;
     syncDom();
   }
@@ -314,6 +325,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
         holdUntil = now + OB_HOLD_MS;
         holding = true;
         noteWarn = true;
+        sound.play("ob");
         ball = { ...path[path.length - 1] };
         returnTo = { ...a.next.pos };
         break;
@@ -331,6 +343,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
         trails.push({ path, ob: false });
         ball = { ...path[path.length - 1] };
         const h = viewHole();
+        sound.play("cup");
         overlay = { kind: "clear", holeNo: h.no, strokes: a.next.cards[a.next.cards.length - 1], par: h.par };
         break;
       }
@@ -338,6 +351,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
         trails.push({ path, ob: false });
         ball = { ...path[path.length - 1] };
         const total = totalStrokes(a.next.cards);
+        sound.play("finish");
         overlay = { kind: "result", newBest: bestBefore === null || total < bestBefore };
         bestBefore = save.golf.best;
         break;
@@ -386,6 +400,12 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
     syncDom();
   }
 
+  function toggleSound(): void {
+    sound.setEnabled(!sound.enabled);
+    saveSoundOn(sound.enabled);
+    syncDom();
+  }
+
   function nudgeLr(dir: number): void {
     const t = Math.round(lrToSlider(progress.lr) * SLIDER_TICKS) + dir;
     setLr(sliderToLr(Math.min(SLIDER_TICKS, Math.max(0, t)) / SLIDER_TICKS));
@@ -395,10 +415,18 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   gdBtn.addEventListener("click", () => setMethod("gd"));
   momBtn.addEventListener("click", () => setMethod("momentum"));
   shootBtn.addEventListener("click", shoot);
+  soundBtn.addEventListener("click", toggleSound);
+  // ブラウザの制約で、最初の操作のあとに AudioContext を開始する（オンの時だけ）
+  const onFirstGesture = () => sound.unlock();
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    sound.unlock();
     switch (e.key) {
+      case "m":
+      case "M":
+        if (!e.repeat) toggleSound();
+        break;
       case " ":
       case "Spacebar":
         e.preventDefault();
@@ -441,6 +469,7 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("pointerdown", onFirstGesture);
 
   resetSeries(ball);
   syncDom();
@@ -454,6 +483,8 @@ export function createGolf(nav: { go(r: Route): void }): Screen {
       if (anim) finishAnim(performance.now());
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("pointerdown", onFirstGesture);
+      sound.destroy();
     },
   };
 }

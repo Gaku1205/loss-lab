@@ -1,4 +1,5 @@
 import { loadSave, writeSave, type KeyValueStore, type SaveData } from "./lib/save";
+import { loadSoundOn, writeSoundOn } from "./lib/sound";
 
 /** localStorage を、使えない時は null で返す */
 function storage(): KeyValueStore | null {
@@ -11,6 +12,14 @@ function storage(): KeyValueStore | null {
 
 export function readSave(): SaveData {
   return loadSave(storage());
+}
+
+export function readSoundOn(): boolean {
+  return loadSoundOn(storage());
+}
+
+export function saveSoundOn(on: boolean): void {
+  writeSoundOn(storage(), on);
 }
 
 export function saveData(data: SaveData): void {
